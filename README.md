@@ -41,7 +41,7 @@ $ go get github.com/uudashr/gocognit/cmd/gocognit
 $ gocognit
 Calculate cognitive complexities of Go functions.
 Usage:
-        gocognitive [flags] <Go file or directory> ...
+        gocognit [flags] <Go file or directory> ...
 Flags:
         -over N   show functions with complexity > N only and
                   return exit code 1 if the set is non-empty
