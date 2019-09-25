@@ -2,6 +2,118 @@
 # Gocognit
 Gocognit calculates cognitive complexities of functions in Go source code. A measurement of how hard does the code is intuitively to understand.
 
+## Understanding the complexity
+
+Given code using `if` statement,
+```go
+func GetWords(number int) string {
+    if number == 1 {            // +1
+        return "one"
+    } else if number == 2 {     // +1
+        return "a couple"
+    } else if number == 3 {     // +1
+        return "a few"
+    } else {                    // +1
+        return "lots"
+    }
+} // Cognitive complexity = 4
+```
+
+Above code can be refactored using `switch` statement,
+```go
+func GetWords(number int) string {
+    switch number {             // +1
+        case 1:
+            return "one"
+        case 2:
+            return "a couple"
+        case 3:
+            return "a few"
+        default:
+            return "lots"
+    }
+} // Cognitive complexity = 1
+```
+
+As you see above codes are the same, but the second code are easier to understand, that is why the cognitive complexity score are lower compare to the first one.
+
+## Comparison with cyclometic complexity
+
+### Example 1
+#### Cyclometic complexity
+```go
+func GetWords(number int) string {      // +1
+    switch number {
+        case 1:                         // +1
+            return "one"
+        case 2:                         // +1
+            return "a couple"
+        case 3:                         // +1
+             return "a few"
+        default:
+             return "lots"
+    }
+} // Cyclomatic complexity = 4
+```
+
+####  Cognitive complexity
+```go
+func GetWords(number int) string {
+    switch number {                     // +1
+        case 1:
+            return "one"
+        case 2:
+            return "a couple"
+        case 3:
+            return "a few"
+        default:
+            return "lots"
+    }
+} // Cognitive complexity = 1
+```
+
+Cognitive complexity give lower score compare to cyclomatic complexity.
+
+### Example 2
+#### Cyclomatic complexity
+```go
+func SumOfPrimes(max int) int {         // +1
+    var total int
+
+OUT:
+    for i := 1; i < max; i++ {          // +1
+        for j := 2; j < i; j++ {        // +1
+            if i%j == 0 {               // +1
+                continue OUT
+            }
+        }
+        total += i
+    }
+
+    return total
+} // Cyclomatic complexity = 4
+```
+
+#### Cognitive complexity
+```go
+func SumOfPrimes(max int) int {
+    var total int
+
+OUT:
+    for i := 1; i < max; i++ {          // +1
+        for j := 2; j < i; j++ {        // +2 (nesting = 1)
+            if i%j == 0 {               // +3 (nesting = 2)
+                continue OUT            // +1
+            }
+        }
+        total += i
+    }
+
+    return total
+} // Cognitive complexity = 7
+```
+
+Cognitive complexity give higher score compare to cyclomatic complexity.
 
 ## Rules
 
