@@ -59,12 +59,15 @@ func recvString(recv ast.Expr) string {
 
 // complexity calculates the cognitive complexity of a function.
 func complexity(fn *ast.FuncDecl) int {
-	v := complexityVisitor{}
+	v := complexityVisitor{
+		name: fn.Name,
+	}
 	ast.Walk(&v, fn)
 	return v.complexity
 }
 
 type complexityVisitor struct {
+	name            *ast.Ident
 	complexity      int
 	nesting         int
 	elseNodes       map[ast.Node]bool
@@ -136,6 +139,8 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 		return v.visitBranchStmt(n)
 	case *ast.BinaryExpr:
 		return v.visitBinaryExpr(n)
+	case *ast.CallExpr:
+		return v.visitCallExpr(n)
 	}
 	return v
 }
@@ -244,6 +249,17 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 	return v
 }
 
+func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
+	if name, ok := n.Fun.(*ast.Ident); ok {
+		if name.Obj == v.name.Obj && name.Name == v.name.Name {
+			v.incComplexity()
+		}
+	}
+	ast.Walk(v, n.Fun)
+	walkExprList(v, n.Args)
+	return nil
+}
+
 func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 	v.markCalculated(exp)
 	switch exp := exp.(type) {
@@ -275,4 +291,10 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 		out = append(out, y...)
 	}
 	return out
+}
+
+func walkExprList(v ast.Visitor, list []ast.Expr) {
+	for _, x := range list {
+		ast.Walk(v, x)
+	}
 }
