@@ -182,4 +182,4 @@ The output fields for each line are:
 
 ## Related project
 - [Gocyclo](https://github.com/fzipp/gocyclo) where the code are based on.
-- [Cognitive Complexity: A new way of measuring understandability](https://www.sonarsource.com/docs/CognitiveComplexity.pdf) white paper by G. Ann Campbell
+- [Cognitive Complexity: A new way of measuring understandability](https://www.sonarsource.com/docs/CognitiveComplexity.pdf) white paper by G. Ann Campbell.
