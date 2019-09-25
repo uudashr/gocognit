@@ -119,6 +119,7 @@ Cognitive complexity give higher score compare to cyclomatic complexity.
 
 The cognitive complexity of a function is calculated according to the
 following rules:
+> Note: these rules are specific for Go, please see the [original whitepaper](https://www.sonarsource.com/docs/CognitiveComplexity.pdf) for more complete reference.
 
 ### Increments
 There is an increment for each of the following:
