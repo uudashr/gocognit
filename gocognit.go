@@ -255,9 +255,7 @@ func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 			v.incComplexity()
 		}
 	}
-	ast.Walk(v, n.Fun)
-	walkExprList(v, n.Args)
-	return nil
+	return v
 }
 
 func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
