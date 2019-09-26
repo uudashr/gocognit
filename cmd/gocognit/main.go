@@ -101,7 +101,7 @@ func analyzeFile(fname string, stats []gocognit.Stat) []gocognit.Stat {
 		log.Fatal(err)
 	}
 
-	return gocognit.BuildStats(f, fset, stats)
+	return gocognit.ComplexityStats(f, fset, stats)
 }
 
 func analyzeDir(dirname string, stats []gocognit.Stat) []gocognit.Stat {
