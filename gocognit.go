@@ -18,14 +18,14 @@ func (s Stat) String() string {
 	return fmt.Sprintf("%d %s %s %s", s.Complexity, s.PkgName, s.FuncName, s.Pos)
 }
 
-// BuildStats builds the complexity statistics.
-func BuildStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
+// ComplexityStats builds the complexity statistics.
+func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 	for _, decl := range f.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			stats = append(stats, Stat{
 				PkgName:    f.Name.Name,
 				FuncName:   funcName(fn),
-				Complexity: complexity(fn),
+				Complexity: Complexity(fn),
 				Pos:        fset.Position(fn.Pos()),
 			})
 		}
@@ -57,8 +57,8 @@ func recvString(recv ast.Expr) string {
 	return "BADRECV"
 }
 
-// complexity calculates the cognitive complexity of a function.
-func complexity(fn *ast.FuncDecl) int {
+// Complexity calculates the cognitive complexity of a function.
+func Complexity(fn *ast.FuncDecl) int {
 	v := complexityVisitor{
 		name: fn.Name,
 	}
