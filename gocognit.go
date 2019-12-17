@@ -133,6 +133,8 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 		return v.visitSelectStmt(n)
 	case *ast.ForStmt:
 		return v.visitForStmt(n)
+	case *ast.RangeStmt:
+		return v.visitRangeStmt(n)
 	case *ast.FuncLit:
 		return v.visitFuncLit(n)
 	case *ast.BranchStmt:
@@ -211,6 +213,15 @@ func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
 	if n.Post != nil {
 		ast.Walk(v, n.Post)
 	}
+
+	v.incNesting()
+	ast.Walk(v, n.Body)
+	v.decNesting()
+	return nil
+}
+
+func (v *complexityVisitor) visitRangeStmt(n *ast.RangeStmt) ast.Visitor {
+	v.nestIncComplexity()
 
 	v.incNesting()
 	ast.Walk(v, n.Body)
