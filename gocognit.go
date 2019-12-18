@@ -223,6 +223,16 @@ func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
 func (v *complexityVisitor) visitRangeStmt(n *ast.RangeStmt) ast.Visitor {
 	v.nestIncComplexity()
 
+	if n.Key != nil {
+		ast.Walk(v, n.Key)
+	}
+
+	if n.Value != nil {
+		ast.Walk(v, n.Value)
+	}
+
+	ast.Walk(v, n.X)
+
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
@@ -300,10 +310,4 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 		out = append(out, y...)
 	}
 	return out
-}
-
-func walkExprList(v ast.Visitor, list []ast.Expr) {
-	for _, x := range list {
-		ast.Walk(v, x)
-	}
 }
