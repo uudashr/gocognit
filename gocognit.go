@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+
+	"golang.org/x/tools/go/analysis"
 )
 
 // Stat is statistic of the complexity.
@@ -311,4 +313,33 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 		out = append(out, y...)
 	}
 	return out
+}
+
+var Analyzer = &analysis.Analyzer{
+	Name: "gocognit",
+	Doc:  "Calculate cognitive complexity",
+	Run:  run,
+}
+
+const complexityLimit = 0
+
+func run(pass *analysis.Pass) (interface{}, error) {
+	for _, f := range pass.Files {
+		for _, decl := range f.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok {
+				stat := Stat{
+					PkgName:    f.Name.Name,
+					FuncName:   funcName(fn),
+					Complexity: Complexity(fn),
+					Pos:        pass.Fset.Position(fn.Pos()),
+				}
+
+				if stat.Complexity > complexityLimit {
+					pass.Reportf(fn.Pos(), "cognitive complexity %d of func %s is high (> %d)", stat.Complexity, stat.FuncName, complexityLimit)
+				}
+			}
+		}
+	}
+
+	return nil, nil
 }
