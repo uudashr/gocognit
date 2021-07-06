@@ -6,6 +6,8 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // Stat is statistic of the complexity.
@@ -316,30 +318,33 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 }
 
 var Analyzer = &analysis.Analyzer{
-	Name: "gocognit",
-	Doc:  "Calculate cognitive complexity",
-	Run:  run,
+	Name:     "gocognit",
+	Doc:      "Calculate cognitive complexity",
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      run,
 }
 
 const complexityLimit = 0
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	for _, f := range pass.Files {
-		for _, decl := range f.Decls {
-			if fn, ok := decl.(*ast.FuncDecl); ok {
-				stat := Stat{
-					PkgName:    f.Name.Name,
-					FuncName:   funcName(fn),
-					Complexity: Complexity(fn),
-					Pos:        pass.Fset.Position(fn.Pos()),
-				}
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-				if stat.Complexity > complexityLimit {
-					pass.Reportf(fn.Pos(), "cognitive complexity %d of func %s is high (> %d)", stat.Complexity, stat.FuncName, complexityLimit)
-				}
-			}
-		}
+	nodeFilter := []ast.Node{
+		(*ast.FuncDecl)(nil),
 	}
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		fnDecl := n.(*ast.FuncDecl)
+		stat := Stat{
+			PkgName:    fnDecl.Name.Name,
+			FuncName:   funcName(fnDecl),
+			Complexity: Complexity(fnDecl),
+			Pos:        pass.Fset.Position(fnDecl.Pos()),
+		}
+
+		if stat.Complexity > complexityLimit {
+			pass.Reportf(fnDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", stat.Complexity, stat.FuncName, complexityLimit)
+		}
+	})
 
 	return nil, nil
 }
