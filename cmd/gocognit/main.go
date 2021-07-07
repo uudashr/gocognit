@@ -55,7 +55,7 @@ var (
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("cognitive: ")
+	log.SetPrefix("gocognit: ")
 	flag.Usage = usage
 	flag.Parse()
 	args := flag.Args()
