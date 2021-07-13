@@ -273,6 +273,7 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 	if name, ok := n.Fun.(*ast.Ident); ok {
 		if name.Obj == v.name.Obj && name.Name == v.name.Name {
+			// called by same function (recursion)
 			v.incComplexity()
 		}
 	}
