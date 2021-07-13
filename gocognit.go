@@ -156,8 +156,8 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	v.incIfComplexity(n)
 
-	if n.Init != nil {
-		ast.Walk(v, n.Init)
+	if n := n.Init; n != nil {
+		ast.Walk(v, n)
 	}
 
 	ast.Walk(v, n.Cond)
@@ -182,12 +182,12 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 	v.nestIncComplexity()
 
-	if n.Init != nil {
-		ast.Walk(v, n.Init)
+	if n := n.Init; n != nil {
+		ast.Walk(v, n)
 	}
 
-	if n.Tag != nil {
-		ast.Walk(v, n.Tag)
+	if n := n.Tag; n != nil {
+		ast.Walk(v, n)
 	}
 
 	v.incNesting()
@@ -199,12 +199,12 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 func (v *complexityVisitor) visitTypeSwitchStmt(n *ast.TypeSwitchStmt) ast.Visitor {
 	v.nestIncComplexity()
 
-	if n.Init != nil {
-		ast.Walk(v, n.Init)
+	if n := n.Init; n != nil {
+		ast.Walk(v, n)
 	}
 
-	if n.Assign != nil {
-		ast.Walk(v, n.Assign)
+	if n := n.Assign; n != nil {
+		ast.Walk(v, n)
 	}
 
 	v.incNesting()
@@ -225,16 +225,16 @@ func (v *complexityVisitor) visitSelectStmt(n *ast.SelectStmt) ast.Visitor {
 func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
 	v.nestIncComplexity()
 
-	if n.Init != nil {
-		ast.Walk(v, n.Init)
+	if n := n.Init; n != nil {
+		ast.Walk(v, n)
 	}
 
-	if n.Cond != nil {
-		ast.Walk(v, n.Cond)
+	if n := n.Cond; n != nil {
+		ast.Walk(v, n)
 	}
 
-	if n.Post != nil {
-		ast.Walk(v, n.Post)
+	if n := n.Post; n != nil {
+		ast.Walk(v, n)
 	}
 
 	v.incNesting()
@@ -246,12 +246,12 @@ func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
 func (v *complexityVisitor) visitRangeStmt(n *ast.RangeStmt) ast.Visitor {
 	v.nestIncComplexity()
 
-	if n.Key != nil {
-		ast.Walk(v, n.Key)
+	if n := n.Key; n != nil {
+		ast.Walk(v, n)
 	}
 
 	if n.Value != nil {
-		ast.Walk(v, n.Value)
+		ast.Walk(v, n)
 	}
 
 	ast.Walk(v, n.X)
