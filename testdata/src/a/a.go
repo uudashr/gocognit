@@ -52,7 +52,7 @@ func Fact(n int) int { // want "cognitive complexity 3 of func Fact is high \\(>
 	if n <= 1 { // +1
 		return 1
 	} else { // +1
-		return n + Fact(n-1) // +1
+		return n * Fact(n-1) // +1
 	}
 } // total complexity = 3
 

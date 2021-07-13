@@ -52,7 +52,7 @@ func Fact(n int) int {
 	if n <= 1 { // +1
 		return 1
 	} else { // +1
-		return n + Fact(n-1) // +1
+		return n * Fact(n-1) // +1
 	}
 } // total complexity = 3
 
