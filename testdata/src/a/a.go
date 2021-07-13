@@ -1,5 +1,11 @@
 package testdata
 
+import (
+	"errors"
+	"fmt"
+	"io"
+)
+
 func GetWords_IfElse(number int) string { // want "cognitive complexity 4 of func GetWords_IfElse is high \\(> 0\\)"
 	if number == 1 { // +1
 		return "one"
@@ -49,3 +55,16 @@ func Fact(n int) int { // want "cognitive complexity 3 of func Fact is high \\(>
 		return n + Fact(n-1) // +1
 	}
 } // total complexity = 3
+
+func DumpVal(w io.Writer, i interface{}) error { // want "cognitive complexity 1 of func DumpVal is high \\(> 0\\)"
+	switch v := i.(type) { // +1
+	case int:
+		fmt.Fprint(w, "int ", v)
+	case string:
+		fmt.Fprint(w, "string", v)
+	default:
+		return errors.New("unrecognized type")
+	}
+
+	return nil
+} // total complexity = 1
