@@ -66,6 +66,7 @@ func Complexity(fn *ast.FuncDecl) int {
 	v := complexityVisitor{
 		name: fn.Name,
 	}
+
 	ast.Walk(&v, fn)
 	return v.complexity
 }
@@ -300,8 +301,11 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 	if name, ok := n.Fun.(*ast.Ident); ok {
 		if name.Obj == v.name.Obj && name.Name == v.name.Name {
-			// called by same function (recursion)
+			// called by same function directly (direct recursion)
 			v.incComplexity()
+		} else if fnDecl, ok := name.Obj.Decl.(*ast.FuncDecl); ok {
+			// called by same function indirectly (indirect recursion)
+			ast.Walk(v, fnDecl)
 		}
 	}
 	return v

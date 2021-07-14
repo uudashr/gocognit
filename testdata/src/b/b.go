@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+func HelloWorld() string {
+	return "Hello, World!"
+} // total complexity = 0
+
 func SimpleCond(n int) string {
 	if n == 100 { // +1
 		return "a hundred"
@@ -112,13 +116,34 @@ OUT:
 	return total
 } // Cognitive complexity = 7
 
-func Fact(n int) int {
+func FactRec(n int) int {
 	if n <= 1 { // +1
 		return 1
 	} else { // +1
-		return n * Fact(n-1) // +1
+		return n * FactRec(n-1) // +1
 	}
 } // total complexity = 3
+
+func FactRecIndirect(n int) int {
+	if n <= 1 { // +1
+		return 1
+	} else { // +1
+		return factRecIndirect0(n) // +0 +1, due to indirect call to FactRecIndirect
+	}
+} // total complexity = 3
+
+func factRecIndirect0(n int) int {
+	return n * FactRecIndirect(n-1) // +0 +3 due to inderect call to factRecIndirect0
+} // total complexity = 3
+
+func FactLoop(n int) int {
+	total := 1
+	for n > 0 { // +1
+		total *= n
+		n--
+	}
+	return total
+} // total complexity = 1
 
 func DumpVal(w io.Writer, i interface{}) error {
 	switch v := i.(type) { // +1
