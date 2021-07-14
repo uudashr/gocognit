@@ -125,18 +125,6 @@ func FactRec(n int) int {
 	}
 } // total complexity = 3
 
-func FactRecIndirect(n int) int {
-	if n <= 1 { // +1
-		return 1
-	} else { // +1
-		return factRecIndirect0(n) // +0 +1, due to indirect call to FactRecIndirect
-	}
-} // total complexity = 3
-
-func factRecIndirect0(n int) int {
-	return n * FactRecIndirect(n-1) // +0 +3 due to inderect call to factRecIndirect0
-} // total complexity = 3
-
 func FactLoop(n int) int {
 	total := 1
 	for n > 0 { // +1

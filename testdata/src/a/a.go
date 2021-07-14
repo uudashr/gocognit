@@ -125,18 +125,6 @@ func FactRec(n int) int { // want "cognitive complexity 3 of func FactRec is hig
 	}
 } // total complexity = 3
 
-func FactRecIndirect(n int) int { // want "cognitive complexity 3 of func FactRecIndirect is high \\(> 0\\)"
-	if n <= 1 { // +1
-		return 1
-	} else { // +1
-		return factRecIndirect0(n) // +0 +1, due to indirect call to FactRecIndirect
-	}
-} // total complexity = 3
-
-func factRecIndirect0(n int) int { // want "cognitive complexity 3 of func factRecIndirect0 is high \\(> 0\\)"
-	return n * FactRecIndirect(n-1) // +0 +3 due to inderect call to factRecIndirect0
-} // total complexity = 3
-
 func FactLoop(n int) int { // want "cognitive complexity 1 of func FactLoop is high \\(> 0\\)"
 	total := 1
 	for n > 0 { // +1

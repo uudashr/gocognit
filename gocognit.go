@@ -304,11 +304,6 @@ func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 		if obj == v.name.Obj && name == v.name.Name {
 			// called by same function directly (direct recursion)
 			v.incComplexity()
-		} else if obj != nil {
-			if fnDecl, ok := obj.Decl.(*ast.FuncDecl); ok {
-				// called by same function indirectly (indirect recursion)
-				ast.Walk(v, fnDecl)
-			}
 		}
 	}
 	return v
