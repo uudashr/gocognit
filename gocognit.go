@@ -250,7 +250,7 @@ func (v *complexityVisitor) visitRangeStmt(n *ast.RangeStmt) ast.Visitor {
 		ast.Walk(v, n)
 	}
 
-	if n.Value != nil {
+	if n := n.Value; n != nil {
 		ast.Walk(v, n)
 	}
 

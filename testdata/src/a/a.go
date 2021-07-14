@@ -6,19 +6,47 @@ import (
 	"io"
 )
 
-func GetWords_IfElse(number int) string { // want "cognitive complexity 4 of func GetWords_IfElse is high \\(> 0\\)"
-	if number == 1 { // +1
-		return "one"
-	} else if number == 2 { // +1
-		return "a couple"
-	} else if number == 3 { // +1
-		return "a few"
-	} else { // +1
-		return "lots"
+func SimpleCond(n int) string { // want "cognitive complexity 1 of func SimpleCond is high \\(> 0\\)"
+	if n == 100 { // +1
+		return "a hundred"
 	}
+
+	return "others"
+} // total complexity = 1
+
+func SimpleCondAndChain(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleCondAndChain is high \\(> 0\\)"
+	if a && b && c && d { // +1 for `if`, +1 for `&&` chain
+		return "ok"
+	}
+
+	return "not ok"
+} // total complexity = 2
+
+func SimpleCondOrChain(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleCondOrChain is high \\(> 0\\)"
+	if a || b || c || d { // +1 for `if`, +1 for `||` chain
+		return "ok"
+	}
+
+	return "not ok"
+} // total complexity = 2
+
+func ComplexCondMixedChain1(a, b, c, d, e, f bool) string { // want "cognitive complexity 4 of func ComplexCondMixedChain1 is high \\(> 0\\)"
+	if a && b && c || d || e && f { // +1 for `if`, +3 for changing sequence of `&&` `||` `&&` chain
+		return "ok"
+	}
+
+	return "not ok"
 } // total complexity = 4
 
-func GetWords_SwitchCase(number int) string { // want "cognitive complexity 1 of func GetWords_SwitchCase is high \\(> 0\\)"
+func ComplexCondMixedChain2(a, b, c, d, e, f bool) string { // want "cognitive complexity 3 of func ComplexCondMixedChain2 is high \\(> 0\\)"
+	if a && !(b && c) { // +1 for `if`, +2 for having sequence of `&&` `&&` chain
+		return "ok"
+	}
+
+	return "not ok"
+} // total complexity = 3
+
+func GetWords(number int) string { // want "cognitive complexity 1 of func GetWords is high \\(> 0\\)"
 	switch number { // +1
 	case 1:
 		return "one"
@@ -30,6 +58,18 @@ func GetWords_SwitchCase(number int) string { // want "cognitive complexity 1 of
 		return "lots"
 	}
 } // Cognitive complexity = 1
+
+func GetWords_Complex(number int) string { // want "cognitive complexity 4 of func GetWords_Complex is high \\(> 0\\)"
+	if number == 1 { // +1
+		return "one"
+	} else if number == 2 { // +1
+		return "a couple"
+	} else if number == 3 { // +1
+		return "a few"
+	} else { // +1
+		return "lots"
+	}
+} // total complexity = 4
 
 func SumOfPrimes(max int) int { // want "cognitive complexity 7 of func SumOfPrimes is high \\(> 0\\)"
 	var total int
@@ -68,3 +108,36 @@ func DumpVal(w io.Writer, i interface{}) error { // want "cognitive complexity 1
 
 	return nil
 } // total complexity = 1
+
+func ForRange(a []int) int { // want "cognitive complexity 3 of func ForRange is high \\(> 0\\)"
+	var sum int
+	for _, v := range a { // +1
+		sum += v
+		if v%2 == 0 { // + 2 (nesting = 1)
+			sum += 1
+		}
+	}
+
+	return sum
+} // total complexity = 3
+
+func MyFunc(a bool) { // want "cognitive complexity 6 of func MyFunc is high \\(> 0\\)"
+	if a { // +1
+		for i := 0; i < 10; i++ { // +2 (nesting = 1)
+			n := 0
+			for n < 10 { // +3 (nesting = 2)
+				n++
+			}
+		}
+	}
+} // total complexity = 6
+
+func MyFunc2(a bool) { // want "cognitive complexity 2 of func MyFunc2 is high \\(> 0\\)"
+	x := func() { // +0 (but nesting level is now 1)
+		if a { // +2 (nesting = 1)
+			fmt.Fprintln(io.Discard, "true")
+		}
+	}
+
+	x()
+} // total complexity = 2
