@@ -7,6 +7,7 @@ import (
 )
 
 func HelloWorld() string {
+	_ = len("hello")
 	return "Hello, World!"
 } // total complexity = 0
 
