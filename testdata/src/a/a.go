@@ -14,31 +14,55 @@ func SimpleCond(n int) string { // want "cognitive complexity 1 of func SimpleCo
 	return "others"
 } // total complexity = 1
 
-func SimpleCondAndChain(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleCondAndChain is high \\(> 0\\)"
-	if a && b && c && d { // +1 for `if`, +1 for `&&` chain
+func IfElseNested(n int) string { // want "cognitive complexity 3 of func IfElseNested is high \\(> 0\\)"
+	if n == 100 { // +1
+		return "a hundred"
+	} else { // + 1
+		if n == 200 { // + 1
+			return "two hundred"
+		}
+	}
+
+	return "others"
+} // total complexity = 3
+
+func IfElseIfNested(n int) string { // want "cognitive complexity 3 of func IfElseIfNested is high \\(> 0\\)"
+	if n == 100 { // +1
+		return "a hundred"
+	} else if n < 300 { // + 1
+		if n == 200 { // + 1
+			return "two hundred"
+		}
+	}
+
+	return "others"
+} // total complexity = 3
+
+func SimpleLogicalSeq1(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleLogicalSeq1 is high \\(> 0\\)"
+	if a && b && c && d { // +1 for `if`, +1 for `&&` sequence
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 2
 
-func SimpleCondOrChain(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleCondOrChain is high \\(> 0\\)"
-	if a || b || c || d { // +1 for `if`, +1 for `||` chain
+func SimpleLogicalSeq2(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleLogicalSeq2 is high \\(> 0\\)"
+	if a || b || c || d { // +1 for `if`, +1 for `||` sequence
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 2
 
-func ComplexCondMixedChain1(a, b, c, d, e, f bool) string { // want "cognitive complexity 4 of func ComplexCondMixedChain1 is high \\(> 0\\)"
-	if a && b && c || d || e && f { // +1 for `if`, +3 for changing sequence of `&&` `||` `&&` chain
+func ComplexLogicalSeq1(a, b, c, d, e, f bool) string { // want "cognitive complexity 4 of func ComplexLogicalSeq1 is high \\(> 0\\)"
+	if a && b && c || d || e && f { // +1 for `if`, +3 for changing sequence of `&&` `||` `&&`
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 4
 
-func ComplexCondMixedChain2(a, b, c, d, e, f bool) string { // want "cognitive complexity 3 of func ComplexCondMixedChain2 is high \\(> 0\\)"
+func ComplexLogicalSeq2(a, b, c, d, e, f bool) string { // want "cognitive complexity 3 of func ComplexLogicalSeq2 is high \\(> 0\\)"
 	if a && !(b && c) { // +1 for `if`, +2 for having sequence of `&&` `&&` chain
 		return "ok"
 	}

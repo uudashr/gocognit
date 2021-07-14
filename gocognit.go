@@ -162,20 +162,24 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 
 	ast.Walk(v, n.Cond)
 
-	v.incNesting()
-	ast.Walk(v, n.Body)
-	v.decNesting()
+	pure := !v.markedAsElseNode(n) // pure `if` statement, not an `else if`
+	if pure {
+		v.incNesting()
+		ast.Walk(v, n.Body)
+		v.decNesting()
+	} else {
+		ast.Walk(v, n.Body)
+	}
 
 	if _, ok := n.Else.(*ast.BlockStmt); ok {
 		v.incComplexity()
 
-		v.incNesting()
 		ast.Walk(v, n.Else)
-		v.decNesting()
 	} else if _, ok := n.Else.(*ast.IfStmt); ok {
 		v.markAsElseNode(n.Else)
 		ast.Walk(v, n.Else)
 	}
+
 	return nil
 }
 

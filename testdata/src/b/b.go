@@ -14,31 +14,55 @@ func SimpleCond(n int) string {
 	return "others"
 } // total complexity = 1
 
-func SimpleCondAndChain(a, b, c, d bool) string {
-	if a && b && c && d { // +1 for `if`, +1 for `&&` chain
+func IfElseNested(n int) string {
+	if n == 100 { // +1
+		return "a hundred"
+	} else { // + 1
+		if n == 200 { // + 1
+			return "two hundred"
+		}
+	}
+
+	return "others"
+} // total complexity = 3
+
+func IfElseIfNested(n int) string {
+	if n == 100 { // +1
+		return "a hundred"
+	} else if n < 300 { // + 1
+		if n == 200 { // + 1
+			return "two hundred"
+		}
+	}
+
+	return "others"
+} // total complexity = 3
+
+func SimpleLogicalSeq1(a, b, c, d bool) string {
+	if a && b && c && d { // +1 for `if`, +1 for `&&` sequence
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 2
 
-func SimpleCondOrChain(a, b, c, d bool) string {
-	if a || b || c || d { // +1 for `if`, +1 for `||` chain
+func SimpleLogicalSeq2(a, b, c, d bool) string {
+	if a || b || c || d { // +1 for `if`, +1 for `||` sequence
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 2
 
-func ComplexCondMixedChain1(a, b, c, d, e, f bool) string { // want "cognitive complexity 4 of func ComplexCondMixedChain1 is high \\(> 3\\)"
-	if a && b && c || d || e && f { // +1 for `if`, +3 for changing sequence of `&&` `||` `&&` chain
+func ComplexLogicalSeq1(a, b, c, d, e, f bool) string { // want "cognitive complexity 4 of func ComplexLogicalSeq1 is high \\(> 3\\)"
+	if a && b && c || d || e && f { // +1 for `if`, +3 for changing sequence of `&&` `||` `&&`
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 4
 
-func ComplexCondMixedChain2(a, b, c, d, e, f bool) string {
+func ComplexLogicalSeq2(a, b, c, d, e, f bool) string {
 	if a && !(b && c) { // +1 for `if`, +2 for having sequence of `&&` `&&` chain
 		return "ok"
 	}
