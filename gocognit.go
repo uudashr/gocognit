@@ -344,7 +344,7 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 
 const Doc = `Find complex function using cognitive complexity calculation.
 
-The gocognit analysis repots functions or methods which the complexity is over 
+The gocognit analysis reports functions or methods which the complexity is over 
 than the specified limit.`
 
 // Analyzer reports a diagnostic for every function or method which is
