@@ -1,4 +1,4 @@
-module github.com/uudashr/gocognit
+module github.com/distroy/gocognit
 
 go 1.16
 
