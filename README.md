@@ -1,4 +1,6 @@
-[![GoDoc](https://godoc.org/github.com/uudashr/gocognit?status.svg)](https://godoc.org/github.com/uudashr/gocognit)
+[![GoDoc](https://godoc.org/github.com/distroy/gocognit?status.svg)](https://godoc.org/github.com/distroy/gocognit)
+fork: github.com/uudashr/gocognit
+
 # Gocognit
 Gocognit calculates cognitive complexities of functions in Go source code. A measurement of how hard does the code is intuitively to understand.
 
@@ -146,13 +148,13 @@ The following structures receive a nesting increment commensurate with their nes
 ## Installation
 
 ```
-$ go install github.com/uudashr/gocognit/cmd/gocognit@latest
+$ go install github.com/distroy/gocognit/cmd/gocognit@latest
 ```
 
-or 
+or
 
 ```
-$ go get github.com/uudashr/gocognit/cmd/gocognit
+$ go get github.com/distroy/gocognit/cmd/gocognit
 ```
 
 ## Usage
