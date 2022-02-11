@@ -39,7 +39,7 @@ Flags:
         -avg      show the average complexity over all functions,
                   not depending on whether -over or -top are set
 The output fields for each line are:
-<complexity> <package> <function> <file:row:column>
+<complexity> <package> <function> <file:begin_row,end_row>
 `
 
 func usage() {
@@ -148,5 +148,12 @@ type byComplexity []gocognit.Stat
 func (s byComplexity) Len() int      { return len(s) }
 func (s byComplexity) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s byComplexity) Less(i, j int) bool {
-	return s[i].Complexity >= s[j].Complexity
+	a, b := s[i], s[j]
+	if a.Complexity != b.Complexity {
+		return a.Complexity > b.Complexity
+	}
+	if a.BeginPos.Filename != b.BeginPos.Filename {
+		return a.BeginPos.Filename < b.BeginPos.Filename
+	}
+	return a.BeginPos.Line <= b.BeginPos.Line
 }

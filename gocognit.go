@@ -15,11 +15,13 @@ type Stat struct {
 	PkgName    string
 	FuncName   string
 	Complexity int
-	Pos        token.Position
+	BeginPos   token.Position
+	EndPos     token.Position
 }
 
 func (s Stat) String() string {
-	return fmt.Sprintf("%d %s %s %s", s.Complexity, s.PkgName, s.FuncName, s.Pos)
+	filePos := fmt.Sprintf("%s:%d,%d", s.BeginPos.Filename, s.BeginPos.Line, s.EndPos.Line)
+	return fmt.Sprintf("%d %s %s %s", s.Complexity, s.PkgName, s.FuncName, filePos)
 }
 
 // ComplexityStats builds the complexity statistics.
@@ -30,7 +32,8 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 				PkgName:    f.Name.Name,
 				FuncName:   funcName(fn),
 				Complexity: Complexity(fn),
-				Pos:        fset.Position(fn.Pos()),
+				BeginPos:   fset.Position(fn.Pos()),
+				EndPos:     fset.Position(fn.Body.Rbrace),
 			})
 		}
 	}
@@ -344,7 +347,7 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 
 const Doc = `Find complex function using cognitive complexity calculation.
 
-The gocognit analysis reports functions or methods which the complexity is over 
+The gocognit analysis reports functions or methods which the complexity is over
 than the specified limit.`
 
 // Analyzer reports a diagnostic for every function or method which is
