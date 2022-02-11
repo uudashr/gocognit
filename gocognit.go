@@ -33,7 +33,7 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 				FuncName:   funcName(fn),
 				Complexity: Complexity(fn),
 				BeginPos:   fset.Position(fn.Pos()),
-				EndPos:     fset.Position(fn.Body.Rbrace),
+				EndPos:     fset.Position(fn.End()),
 			})
 		}
 	}
