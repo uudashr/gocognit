@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -33,11 +34,19 @@ const usageDoc = `Calculate cognitive complexities of Go functions.
 Usage:
         gocognit [flags] <Go file or directory> ...
 Flags:
-        -over N   show functions with complexity > N only and
-                  return exit code 1 if the set is non-empty
-        -top N    show the top N most complex functions only
-        -avg      show the average complexity over all functions,
-                  not depending on whether -over or -top are set
+        -over <N>   show functions with complexity > N only and
+                    return exit code 1 if the set is non-empty
+        -top <N>    show the top N most complex functions only
+        -avg        show the average complexity over all functions,
+                    not depending on whether -over or -top are set
+        -include <regexp>
+                    the regexp for include pathes
+        -exclude <regexp>
+                    the regexp for exclude pathes
+                    default:
+                        ^vendor/
+                        /vendor/
+                        \.pb\.go$
 The output fields for each line are:
 <complexity> <package> <function> <file:begin_row,end_row>
 `
@@ -48,10 +57,37 @@ func usage() {
 }
 
 var (
+	_defaultExcludes = []*regexp.Regexp{
+		regexp.MustCompile(`^vendor/`),
+		regexp.MustCompile(`/vendor/`),
+		regexp.MustCompile(`\.pb\.go$`),
+	}
+
 	over = flag.Int("over", 0, "show functions with complexity > N only")
 	top  = flag.Int("top", -1, "show the top N most complex functions only")
 	avg  = flag.Bool("avg", false, "show the average complexity")
+
+	includes = flagRegexps("include", nil, "the regexp for include pathes")
+	excludes = flagRegexps("exclude", _defaultExcludes, "the regexp for exclude pathes")
 )
+
+func flagRegexps(name string, def []*regexp.Regexp, usage string) *flagRegexpsValue {
+	val := flagRegexpsValue(def)
+	flag.Var(&val, name, usage)
+	return &val
+}
+
+type flagRegexpsValue []*regexp.Regexp
+
+func (p *flagRegexpsValue) Set(s string) error {
+	re, err := regexp.Compile(s)
+	if err == nil {
+		*p = append(*p, re)
+	}
+	return nil
+}
+
+func (p *flagRegexpsValue) String() string { return "" }
 
 func main() {
 	log.SetFlags(0)
@@ -76,6 +112,22 @@ func main() {
 	}
 }
 
+func isPathIgnored(path string) bool {
+	for _, re := range *includes {
+		loc := re.FindStringIndex(path)
+		if len(loc) == 2 {
+			return false
+		}
+	}
+	for _, re := range *excludes {
+		loc := re.FindStringIndex(path)
+		if len(loc) == 2 {
+			return true
+		}
+	}
+	return false
+}
+
 func analyze(paths []string) []gocognit.Stat {
 	var stats []gocognit.Stat
 	for _, path := range paths {
@@ -95,6 +147,9 @@ func isDir(filename string) bool {
 }
 
 func analyzeFile(fname string, stats []gocognit.Stat) []gocognit.Stat {
+	if isPathIgnored(fname) {
+		return stats
+	}
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, fname, nil, 0)
 	if err != nil {
@@ -105,6 +160,10 @@ func analyzeFile(fname string, stats []gocognit.Stat) []gocognit.Stat {
 }
 
 func analyzeDir(dirname string, stats []gocognit.Stat) []gocognit.Stat {
+	if isPathIgnored(dirname) {
+		return stats
+	}
+
 	err := filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() && strings.HasSuffix(path, ".go") {
 			stats = analyzeFile(path, stats)
