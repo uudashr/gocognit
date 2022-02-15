@@ -33,6 +33,8 @@ import (
 const usageDoc = `Calculate cognitive complexities of Go functions.
 Usage:
         gocognit [flags] <Go file or directory> ...
+<Go file or directory>:
+        default current directory
 Flags:
         -over <N>   show functions with complexity > N only and
                     return exit code 1 if the set is non-empty
@@ -96,7 +98,7 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 	if len(args) == 0 {
-		usage()
+		args = []string{"."}
 	}
 
 	stats := analyze(args)
