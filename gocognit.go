@@ -1,11 +1,13 @@
 package gocognit
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"io"
 	"log"
+	"os"
 	"reflect"
 
 	"golang.org/x/tools/go/analysis"
@@ -14,9 +16,11 @@ import (
 )
 
 var (
-	// logger = log.Default()
-	logger = log.New(io.Discard, "", 0)
+	_log    = log.New(os.Stderr, "debug ", log.Lshortfile)
+	_debugs map[string]struct{}
 )
+
+func SetDebugs(d map[string]struct{}) { _debugs = d }
 
 // Stat is statistic of the complexity.
 type Stat struct {
@@ -78,16 +82,22 @@ func typeName(i interface{}) string {
 
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fset *token.FileSet, fn *ast.FuncDecl) int {
+	l := log.New(io.Discard, "", 0)
+	if _, ok := _debugs[funcName(fn)]; ok {
+		l = _log
+	}
 	v := complexityVisitor{
+		log:  l,
+		fset: fset,
 		name: fn.Name,
 	}
 
-	logger.Printf("*** %s begin ***", v.name)
+	v.log.Printf("*** %s begin ***", v.name)
 
 	ast.Walk(&v, fn)
 
-	logger.Printf("*** %s end ***", v.name)
-	logger.Print("")
+	v.log.Printf("*** %s end ***", v.name)
+	v.log.Print("")
 	return v.complexity
 }
 
@@ -100,6 +110,7 @@ const (
 )
 
 type complexityVisitor struct {
+	log             *log.Logger
 	fset            *token.FileSet
 	name            *ast.Ident
 	complexity      int
@@ -112,7 +123,9 @@ func (v *complexityVisitor) printBody(n ast.Node) {
 	if v.fset == nil {
 		return
 	}
-	ast.Print(v.fset, n)
+	buffer := bytes.NewBuffer(nil)
+	ast.Fprint(buffer, v.fset, n, nil)
+	v.log.Printf("print content: \n%s", buffer.String())
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -124,12 +137,12 @@ func (v *complexityVisitor) decNesting() {
 }
 
 func (v *complexityVisitor) incComplexity() {
-	logger.Printf("+1 incComplexity")
+	v.log.Printf("+1 incComplexity")
 	v.complexity++
 }
 
 func (v *complexityVisitor) nestIncComplexity() {
-	logger.Printf("+%d nestIncComplexity", v.nesting+1)
+	v.log.Printf("+%d nestIncComplexity", v.nesting+1)
 	v.complexity += (v.nesting + 1)
 }
 
@@ -200,8 +213,8 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 		fn = func() ast.Visitor { return v.visitCaseClause(n) }
 	}
 
-	logger.Printf("%s begin", typeName(n))
-	defer logger.Printf("%s end", typeName(n))
+	v.log.Printf("%s begin", typeName(n))
+	defer v.log.Printf("%s end", typeName(n))
 	res := fn()
 	return res
 }
@@ -210,14 +223,14 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	v.incIfComplexity(n)
 
 	if t := n.Init; t != nil {
-		logger.Print("if init begin")
+		v.log.Print("if init begin")
 		ast.Walk(v, t)
-		logger.Print("if init end")
+		v.log.Print("if init end")
 	}
 
-	logger.Print("if cond begin")
+	v.log.Print("if cond begin")
 	ast.Walk(v, n.Cond)
-	logger.Print("if cond end")
+	v.log.Print("if cond end")
 
 	pure := !v.markedAsElseNode(n) // pure `if` statement, not an `else if`
 	if pure {
@@ -242,23 +255,23 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 
 func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 	if n := n.Init; n != nil {
-		logger.Print("switch init begin", typeName(n))
+		v.log.Print("switch init begin", typeName(n))
 		ast.Walk(v, n)
-		logger.Print("switch init end", typeName(n))
+		v.log.Print("switch init end", typeName(n))
 	}
 
 	if n := n.Tag; n != nil {
 		v.nestIncComplexity()
-		logger.Print("switch tag begin", typeName(n))
+		v.log.Print("switch tag begin", typeName(n))
 		ast.Walk(v, n)
-		logger.Print("switch tag end", typeName(n))
+		v.log.Print("switch tag end", typeName(n))
 	}
 
 	v.incNesting()
 
-	logger.Print("switch body begin")
+	v.log.Print("switch body begin")
 	ast.Walk(v, n.Body)
-	logger.Print("switch body end")
+	v.log.Print("switch body end")
 
 	v.decNesting()
 	return nil
@@ -268,21 +281,21 @@ func (v *complexityVisitor) visitTypeSwitchStmt(n *ast.TypeSwitchStmt) ast.Visit
 	v.nestIncComplexity()
 
 	if n := n.Init; n != nil {
-		logger.Print("switch type init begin")
+		v.log.Print("switch type init begin")
 		ast.Walk(v, n)
-		logger.Print("switch type init end")
+		v.log.Print("switch type init end")
 	}
 
 	if n := n.Assign; n != nil {
-		logger.Print("switch type assign begin", typeName(n))
+		v.log.Print("switch type assign begin", typeName(n))
 		ast.Walk(v, n)
-		logger.Print("switch type assign end", typeName(n))
+		v.log.Print("switch type assign end", typeName(n))
 	}
 
 	v.incNesting()
-	logger.Print("switch type body begin")
+	v.log.Print("switch type body begin")
 	ast.Walk(v, n.Body)
-	logger.Print("switch type body end")
+	v.log.Print("switch type body end")
 	v.decNesting()
 	return nil
 }
@@ -354,28 +367,12 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 
 func (v *complexityVisitor) visitCaseClause(n *ast.CaseClause) ast.Visitor {
 	for _, expr := range n.List {
-		n, _ := expr.(*ast.BinaryExpr)
-		if n == nil {
-			continue
+		if n, _ := expr.(*ast.BinaryExpr); n != nil {
+			v.incComplexity()
 		}
 
-		// ast.Walk(v, expr)
-		if v.isCalculated(n) {
-			continue
-		}
-
-		v.incComplexity()
-		v.visitBinaryExpr(n)
+		ast.Walk(v, expr)
 	}
-
-	// for _, expr := range n.List {
-	// 	if n, _ := expr.(*ast.BinaryExpr); n != nil {
-	// 		v.incComplexity()
-	// 		continue
-	// 	}
-	//
-	// 	ast.Walk(v, expr)
-	// }
 
 	for _, n := range n.Body {
 		ast.Walk(v, n)
@@ -384,25 +381,30 @@ func (v *complexityVisitor) visitCaseClause(n *ast.CaseClause) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
-	if v.isCalculated(n) {
-		return v
-	}
-	if n.Op != token.LAND && n.Op != token.LOR {
-		return v
-	}
-
+	// v.printBody(n)
 	ops := v.collectBinaryOps(n)
-	for _, op := range ops {
-		logger.Printf("op:%s", op.String())
 
-		if op != token.LAND && op != token.LOR {
+	var lastOp token.Token
+	for _, op := range ops {
+		v.log.Printf("op: %s", op.String())
+		switch op {
+		default:
 			continue
+
+		case token.LPAREN, token.RPAREN:
+			lastOp = op
+			continue
+
+		case token.LAND, token.LOR:
+			if lastOp != op {
+				v.incComplexity()
+			}
+			lastOp = op
 		}
 
-		v.incComplexity()
 	}
 
-	return v
+	return nil
 }
 
 func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
@@ -423,6 +425,14 @@ func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 		return mergeBinaryOps(v.collectBinaryOps(exp.X), exp.Op, v.collectBinaryOps(exp.Y))
 	case *ast.ParenExpr:
 		// interest only on what inside paranthese
+		ops := v.collectBinaryOps(exp.X)
+		res := make([]token.Token, 0, len(ops)+2)
+		res = append(res, token.LPAREN)
+		res = append(res, ops...)
+		res = append(res, token.RPAREN)
+		return res
+
+	case *ast.UnaryExpr:
 		return v.collectBinaryOps(exp.X)
 	default:
 		return []token.Token{}

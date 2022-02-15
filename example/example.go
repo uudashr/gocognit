@@ -12,10 +12,17 @@ func funcIf1(a int) int {
 }
 
 func funcIf2(a int) int {
-	if a != 0 && a != 10 { // +2
+	if a != 0 && (a != 10) { // +2
 		return a + 1
 	}
 	return a
+}
+
+func funcIf4(a, b, c, d bool) int {
+	if a && (b && c || d) { // +4
+		return 10
+	}
+	return 0
 }
 
 func funcIfElse2(a int) int {
@@ -122,11 +129,11 @@ func funcSwitch3(a int) int {
 	return 0
 }
 
-func funcSwitch5(a int) int {
+func funcSwitch4(a int) int {
 	switch {
 	case a == 0: // +1
 		return a
-	case a > 10000 || a < 100 || a == 200: // +3
+	case a > 10000 || a < 100 || a == 200: // +2
 		return a * a
 	case a < -10: // +1
 		return -a * a
@@ -135,12 +142,23 @@ func funcSwitch5(a int) int {
 }
 
 func funcSwitchType1(a interface{}) int {
-	switch v := a.(type) {
+	switch v := a.(type) { // +1
 	case int:
 		return v
 	case int64:
 		return -1
 	default:
 		return 0
+	}
+}
+
+func funcSelect1() int {
+	a := make(chan int)
+	b := make(chan int)
+	select { // +1
+	case v := <-a:
+		return v
+	case v := <-b:
+		return v
 	}
 }
