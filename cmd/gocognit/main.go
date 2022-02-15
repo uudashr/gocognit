@@ -92,8 +92,10 @@ func (p *flagRegexpsValue) Set(s string) error {
 func (p *flagRegexpsValue) String() string { return "" }
 
 func main() {
+	// log.SetFlags(log.Flags() | log.Lshortfile)
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
+
 	flag.Usage = usage
 	flag.Parse()
 	args := flag.Args()
