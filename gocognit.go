@@ -1,14 +1,26 @@
 package gocognit
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
+	"io"
+	"log"
+	"os"
+	"reflect"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 )
+
+var (
+	_log    = log.New(os.Stderr, "debug ", log.Lshortfile)
+	_debugs map[string]struct{}
+)
+
+func SetDebugs(d map[string]struct{}) { _debugs = d }
 
 // Stat is statistic of the complexity.
 type Stat struct {
@@ -31,7 +43,7 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 			stats = append(stats, Stat{
 				PkgName:    f.Name.Name,
 				FuncName:   funcName(fn),
-				Complexity: Complexity(fn),
+				Complexity: Complexity(fset, fn),
 				BeginPos:   fset.Position(fn.Pos()),
 				EndPos:     fset.Position(fn.End()),
 			})
@@ -64,22 +76,56 @@ func recvString(recv ast.Expr) string {
 	return "BADRECV"
 }
 
+func typeName(i interface{}) string {
+	return reflect.TypeOf(i).String()
+}
+
 // Complexity calculates the cognitive complexity of a function.
-func Complexity(fn *ast.FuncDecl) int {
+func Complexity(fset *token.FileSet, fn *ast.FuncDecl) int {
+	l := log.New(io.Discard, "", 0)
+	if _, ok := _debugs[funcName(fn)]; ok {
+		l = _log
+	}
 	v := complexityVisitor{
+		log:  l,
+		fset: fset,
 		name: fn.Name,
 	}
 
+	v.log.Printf("*** %s begin ***", v.name)
+
 	ast.Walk(&v, fn)
+
+	v.log.Printf("*** %s end ***", v.name)
+	v.log.Print("")
 	return v.complexity
 }
 
+type stmtType int
+
+const (
+	stmtTypeIf stmtType = iota
+	stmtTypeSwitch
+	stmtTypeCase
+)
+
 type complexityVisitor struct {
+	log             *log.Logger
+	fset            *token.FileSet
 	name            *ast.Ident
 	complexity      int
 	nesting         int
 	elseNodes       map[ast.Node]bool
 	calculatedExprs map[ast.Expr]bool
+}
+
+func (v *complexityVisitor) printBody(n ast.Node) {
+	if v.fset == nil {
+		return
+	}
+	buffer := bytes.NewBuffer(nil)
+	ast.Fprint(buffer, v.fset, n, nil)
+	v.log.Printf("print content: \n%s", buffer.String())
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -91,10 +137,12 @@ func (v *complexityVisitor) decNesting() {
 }
 
 func (v *complexityVisitor) incComplexity() {
+	v.log.Printf("+1 incComplexity")
 	v.complexity++
 }
 
 func (v *complexityVisitor) nestIncComplexity() {
+	v.log.Printf("+%d nestIncComplexity", v.nesting+1)
 	v.complexity += (v.nesting + 1)
 }
 
@@ -132,39 +180,57 @@ func (v *complexityVisitor) isCalculated(e ast.Expr) bool {
 
 // Visit implements the ast.Visitor interface.
 func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
-	switch n := n.(type) {
-	case *ast.IfStmt:
-		return v.visitIfStmt(n)
-	case *ast.SwitchStmt:
-		return v.visitSwitchStmt(n)
-	case *ast.TypeSwitchStmt:
-		return v.visitTypeSwitchStmt(n)
-	case *ast.SelectStmt:
-		return v.visitSelectStmt(n)
-	case *ast.ForStmt:
-		return v.visitForStmt(n)
-	case *ast.RangeStmt:
-		return v.visitRangeStmt(n)
-	case *ast.FuncLit:
-		return v.visitFuncLit(n)
-	case *ast.BranchStmt:
-		return v.visitBranchStmt(n)
-	case *ast.BinaryExpr:
-		return v.visitBinaryExpr(n)
-	case *ast.CallExpr:
-		return v.visitCallExpr(n)
+	if n == nil {
+		return v
 	}
-	return v
+
+	var fn func() ast.Visitor
+	switch n := n.(type) {
+	default:
+		return v
+
+	case *ast.IfStmt:
+		fn = func() ast.Visitor { return v.visitIfStmt(n) }
+	case *ast.SwitchStmt:
+		fn = func() ast.Visitor { return v.visitSwitchStmt(n) }
+	case *ast.TypeSwitchStmt:
+		fn = func() ast.Visitor { return v.visitTypeSwitchStmt(n) }
+	case *ast.SelectStmt:
+		fn = func() ast.Visitor { return v.visitSelectStmt(n) }
+	case *ast.ForStmt:
+		fn = func() ast.Visitor { return v.visitForStmt(n) }
+	case *ast.RangeStmt:
+		fn = func() ast.Visitor { return v.visitRangeStmt(n) }
+	case *ast.FuncLit:
+		fn = func() ast.Visitor { return v.visitFuncLit(n) }
+	case *ast.BranchStmt:
+		fn = func() ast.Visitor { return v.visitBranchStmt(n) }
+	case *ast.BinaryExpr:
+		fn = func() ast.Visitor { return v.visitBinaryExpr(n) }
+	case *ast.CallExpr:
+		fn = func() ast.Visitor { return v.visitCallExpr(n) }
+	case *ast.CaseClause:
+		fn = func() ast.Visitor { return v.visitCaseClause(n) }
+	}
+
+	v.log.Printf("%s begin", typeName(n))
+	defer v.log.Printf("%s end", typeName(n))
+	res := fn()
+	return res
 }
 
 func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	v.incIfComplexity(n)
 
-	if n := n.Init; n != nil {
-		ast.Walk(v, n)
+	if t := n.Init; t != nil {
+		v.log.Print("if init begin")
+		ast.Walk(v, t)
+		v.log.Print("if init end")
 	}
 
+	v.log.Print("if cond begin")
 	ast.Walk(v, n.Cond)
+	v.log.Print("if cond end")
 
 	pure := !v.markedAsElseNode(n) // pure `if` statement, not an `else if`
 	if pure {
@@ -188,18 +254,25 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
-	v.nestIncComplexity()
-
 	if n := n.Init; n != nil {
+		v.log.Print("switch init begin", typeName(n))
 		ast.Walk(v, n)
+		v.log.Print("switch init end", typeName(n))
 	}
 
 	if n := n.Tag; n != nil {
+		v.nestIncComplexity()
+		v.log.Print("switch tag begin", typeName(n))
 		ast.Walk(v, n)
+		v.log.Print("switch tag end", typeName(n))
 	}
 
 	v.incNesting()
+
+	v.log.Print("switch body begin")
 	ast.Walk(v, n.Body)
+	v.log.Print("switch body end")
+
 	v.decNesting()
 	return nil
 }
@@ -208,15 +281,21 @@ func (v *complexityVisitor) visitTypeSwitchStmt(n *ast.TypeSwitchStmt) ast.Visit
 	v.nestIncComplexity()
 
 	if n := n.Init; n != nil {
+		v.log.Print("switch type init begin")
 		ast.Walk(v, n)
+		v.log.Print("switch type init end")
 	}
 
 	if n := n.Assign; n != nil {
+		v.log.Print("switch type assign begin", typeName(n))
 		ast.Walk(v, n)
+		v.log.Print("switch type assign end", typeName(n))
 	}
 
 	v.incNesting()
+	v.log.Print("switch type body begin")
 	ast.Walk(v, n.Body)
+	v.log.Print("switch type body end")
 	v.decNesting()
 	return nil
 }
@@ -286,19 +365,46 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 	return v
 }
 
-func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
-	if (n.Op == token.LAND || n.Op == token.LOR) && !v.isCalculated(n) {
-		ops := v.collectBinaryOps(n)
+func (v *complexityVisitor) visitCaseClause(n *ast.CaseClause) ast.Visitor {
+	for _, expr := range n.List {
+		if n, _ := expr.(*ast.BinaryExpr); n != nil {
+			v.incComplexity()
+		}
 
-		var lastOp token.Token
-		for _, op := range ops {
+		ast.Walk(v, expr)
+	}
+
+	for _, n := range n.Body {
+		ast.Walk(v, n)
+	}
+	return nil
+}
+
+func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
+	// v.printBody(n)
+	ops := v.collectBinaryOps(n)
+
+	var lastOp token.Token
+	for _, op := range ops {
+		v.log.Printf("op: %s", op.String())
+		switch op {
+		default:
+			continue
+
+		case token.LPAREN, token.RPAREN:
+			lastOp = op
+			continue
+
+		case token.LAND, token.LOR:
 			if lastOp != op {
 				v.incComplexity()
-				lastOp = op
 			}
+			lastOp = op
 		}
+
 	}
-	return v
+
+	return nil
 }
 
 func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
@@ -319,6 +425,14 @@ func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 		return mergeBinaryOps(v.collectBinaryOps(exp.X), exp.Op, v.collectBinaryOps(exp.Y))
 	case *ast.ParenExpr:
 		// interest only on what inside paranthese
+		ops := v.collectBinaryOps(exp.X)
+		res := make([]token.Token, 0, len(ops)+2)
+		res = append(res, token.LPAREN)
+		res = append(res, ops...)
+		res = append(res, token.RPAREN)
+		return res
+
+	case *ast.UnaryExpr:
 		return v.collectBinaryOps(exp.X)
 	default:
 		return []token.Token{}
@@ -377,7 +491,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		fnDecl := n.(*ast.FuncDecl)
 
 		fnName := funcName(fnDecl)
-		fnComplexity := Complexity(fnDecl)
+		fnComplexity := Complexity(nil, fnDecl)
 
 		if fnComplexity > over {
 			pass.Reportf(fnDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)

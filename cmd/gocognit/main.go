@@ -71,6 +71,8 @@ var (
 
 	includes = flagRegexps("include", nil, "the regexp for include pathes")
 	excludes = flagRegexps("exclude", _defaultExcludes, "the regexp for exclude pathes")
+
+	debugs = flagSet("debug", "debug function names")
 )
 
 func flagRegexps(name string, def []*regexp.Regexp, usage string) *flagRegexpsValue {
@@ -78,6 +80,24 @@ func flagRegexps(name string, def []*regexp.Regexp, usage string) *flagRegexpsVa
 	flag.Var(&val, name, usage)
 	return &val
 }
+
+func flagSet(name string, usage string) *flagSetValue {
+	val := make(flagSetValue)
+	flag.Var(&val, name, usage)
+	return &val
+}
+
+type flagSetValue map[string]struct{}
+
+func (p *flagSetValue) Set(s string) error {
+	if *p == nil {
+		*p = make(map[string]struct{})
+	}
+	(*p)[s] = struct{}{}
+	return nil
+}
+
+func (p *flagSetValue) String() string { return "" }
 
 type flagRegexpsValue []*regexp.Regexp
 
@@ -92,14 +112,18 @@ func (p *flagRegexpsValue) Set(s string) error {
 func (p *flagRegexpsValue) String() string { return "" }
 
 func main() {
+	// log.SetFlags(log.Flags() | log.Lshortfile)
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
+
 	flag.Usage = usage
 	flag.Parse()
 	args := flag.Args()
 	if len(args) == 0 {
 		args = []string{"."}
 	}
+
+	gocognit.SetDebugs(*debugs)
 
 	stats := analyze(args)
 	sort.Sort(byComplexity(stats))
