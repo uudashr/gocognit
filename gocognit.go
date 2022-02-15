@@ -101,14 +101,6 @@ func Complexity(fset *token.FileSet, fn *ast.FuncDecl) int {
 	return v.complexity
 }
 
-type stmtType int
-
-const (
-	stmtTypeIf stmtType = iota
-	stmtTypeSwitch
-	stmtTypeCase
-)
-
 type complexityVisitor struct {
 	log             *log.Logger
 	fset            *token.FileSet
@@ -117,6 +109,7 @@ type complexityVisitor struct {
 	nesting         int
 	elseNodes       map[ast.Node]bool
 	calculatedExprs map[ast.Expr]bool
+	level           int
 }
 
 func (v *complexityVisitor) printBody(n ast.Node) {
@@ -128,11 +121,25 @@ func (v *complexityVisitor) printBody(n ast.Node) {
 	v.log.Printf("print content: \n%s", buffer.String())
 }
 
+func (v *complexityVisitor) incLevel() string {
+	v.level++
+	s := fmt.Sprintf("L%d", v.level)
+	return s
+}
+
+func (v *complexityVisitor) decLevel() string {
+	s := fmt.Sprintf("L%d", v.level)
+	v.level--
+	return s
+}
+
 func (v *complexityVisitor) incNesting() {
 	v.nesting++
+	v.log.Printf("nesting +1. %d", v.nesting)
 }
 
 func (v *complexityVisitor) decNesting() {
+	v.log.Printf("nesting -1. %d", v.nesting)
 	v.nesting--
 }
 
@@ -213,8 +220,10 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 		fn = func() ast.Visitor { return v.visitCaseClause(n) }
 	}
 
-	v.log.Printf("%s begin", typeName(n))
-	defer v.log.Printf("%s end", typeName(n))
+	v.log.Printf("%s begin %s", typeName(n), v.incLevel())
+	defer func() {
+		v.log.Printf("%s end %s", typeName(n), v.decLevel())
+	}()
 	res := fn()
 	return res
 }
@@ -223,31 +232,35 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	v.incIfComplexity(n)
 
 	if t := n.Init; t != nil {
-		v.log.Print("if init begin")
+		v.log.Print("if init begin ", v.incLevel())
 		ast.Walk(v, t)
-		v.log.Print("if init end")
+		v.log.Print("if init end ", v.decLevel())
 	}
 
-	v.log.Print("if cond begin")
+	v.log.Print("if cond begin ", v.incLevel())
 	ast.Walk(v, n.Cond)
-	v.log.Print("if cond end")
+	v.log.Print("if cond end ", v.decLevel())
 
-	pure := !v.markedAsElseNode(n) // pure `if` statement, not an `else if`
-	if pure {
-		v.incNesting()
-		ast.Walk(v, n.Body)
-		v.decNesting()
-	} else {
-		ast.Walk(v, n.Body)
-	}
+	v.incNesting()
+	v.log.Print("if body begin ", v.incLevel())
+	ast.Walk(v, n.Body)
+	v.log.Print("if body end ", v.decLevel())
+	v.decNesting()
 
-	if _, ok := n.Else.(*ast.BlockStmt); ok {
+	switch t := n.Else.(type) {
+	case *ast.BlockStmt:
 		v.incComplexity()
 
-		ast.Walk(v, n.Else)
-	} else if _, ok := n.Else.(*ast.IfStmt); ok {
-		v.markAsElseNode(n.Else)
-		ast.Walk(v, n.Else)
+		v.log.Print("if else block begin ", v.incLevel())
+		// v.printBody(t)
+		ast.Walk(v, t)
+		v.log.Print("if else block end ", v.decLevel())
+
+	case *ast.IfStmt:
+		v.markAsElseNode(t)
+		v.log.Print("if else begin ", v.incLevel())
+		ast.Walk(v, t)
+		v.log.Print("if else end ", v.decLevel())
 	}
 
 	return nil

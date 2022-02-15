@@ -34,13 +34,31 @@ func funcIfElse2(a int) int {
 	return a
 }
 
-func funcIfElse3(a int) int {
+func funcIfElse4(a int) int {
 	if a > 10 { // +1
 		a++
 	} else if a < 0 || a > 1 { // +2
 		a--
+	} else { // +1
+		a += 100
 	}
 	return a
+}
+
+func funcIfElse6(a, b, c int) int {
+	if a > 10 { // +1
+		return a
+
+	} else if a > 1 { // +1
+		if b < 10000 { // +2
+			return b
+		} else if b < 10 { // +1
+			return a + b
+		} else { // +1
+			c = c * a
+		}
+	}
+	return b + c
 }
 
 func funcFor1(a int) int {
