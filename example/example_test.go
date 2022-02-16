@@ -36,17 +36,21 @@ func complexityFromFuncName(funcName string) int {
 	return n
 }
 
-func TestExample(t *testing.T) {
-	file, _ := getFileLine()
-	file = strings.ReplaceAll(file, "_test.go", ".go")
-
+func analyzeFile(t testing.TB, file string) []gocognit.Stat {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 	if err != nil {
 		t.Fatalf("parse file fail. err:%s", err.Error())
 	}
 
-	stats := gocognit.ComplexityStats(f, fset, nil)
+	return gocognit.ComplexityStats(f, fset, nil)
+}
+
+func TestExample(t *testing.T) {
+	file, _ := getFileLine()
+	file = strings.ReplaceAll(file, "_test.go", ".go")
+
+	stats := analyzeFile(t, file)
 	for _, stat := range stats {
 		want := complexityFromFuncName(stat.FuncName)
 		if stat.Complexity == want {
