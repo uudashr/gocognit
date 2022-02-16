@@ -127,6 +127,14 @@ func funcFunc_4(a int) func(b int) int {
 	}
 }
 
+func funcRecursion_3(n int) int {
+	if n <= 1 { // +1
+		return 1
+	} else { // +1
+		return n * funcRecursion_3(n-1) // +1
+	}
+}
+
 func funcFunc_9(a, b, c, d int) func(x int) int {
 	switch { // +1
 	default:

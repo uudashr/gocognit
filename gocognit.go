@@ -416,6 +416,12 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
+	if v.isCalculated(n) {
+		ast.Walk(v, n.X)
+		ast.Walk(v, n.Y)
+		return nil
+	}
+
 	// v.printBody(n)
 	ops := v.collectBinaryOps(n)
 
@@ -444,9 +450,10 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 			}
 			lastOp = op
 		}
-
 	}
 
+	ast.Walk(v, n.X)
+	ast.Walk(v, n.Y)
 	return nil
 }
 
