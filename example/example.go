@@ -4,28 +4,32 @@
 
 package example
 
-func funcIf1(a int) int {
+import (
+	"log"
+)
+
+func funcIf_1(a int) int {
 	if a != 0 { // +1
 		return a + 1
 	}
 	return a
 }
 
-func funcIf2(a int) int {
+func funcIf_2(a int) int {
 	if a != 0 && (a != 10) { // +2
 		return a + 1
 	}
 	return a
 }
 
-func funcIf4(a, b, c, d bool) int {
+func funcIf_4(a, b, c, d bool) int {
 	if a && (b && c || d) { // +4
 		return 10
 	}
 	return 0
 }
 
-func funcIfElse2(a int) int {
+func funcIfElse_2(a int) int {
 	if a > 0 { // +1
 		a++
 	} else if a < 0 { // +2
@@ -34,7 +38,7 @@ func funcIfElse2(a int) int {
 	return a
 }
 
-func funcIfElse4(a int) int {
+func funcIfElse_4(a int) int {
 	if a > 10 { // +1
 		a++
 	} else if a < 0 || a > 1 { // +2
@@ -45,7 +49,7 @@ func funcIfElse4(a int) int {
 	return a
 }
 
-func funcIfElse6(a, b, c int) int {
+func funcIfElse_6(a, b, c int) int {
 	if a > 10 { // +1
 		return a
 
@@ -61,7 +65,14 @@ func funcIfElse6(a, b, c int) int {
 	return b + c
 }
 
-func funcFor1(a int) int {
+func funcIfParen_5(a, b, c, d, e int) int {
+	if (a > 10 || a < -100) && ((b < 10000 && b > 10 && d > 1000) || c > 100) && e > 10 { // +5
+		return a
+	}
+	return b
+}
+
+func funcFor_1(a int) int {
 	s := 0
 	for i := 0; i < a; i++ {
 		s += i
@@ -69,7 +80,7 @@ func funcFor1(a int) int {
 	return s
 }
 
-func funcFor3(a int) int {
+func funcFor_3(a int) int {
 	s := 0
 	for i := 0; i < a; i++ {
 		if i != 10 {
@@ -79,7 +90,7 @@ func funcFor3(a int) int {
 	return s
 }
 
-func funcBreak3(a int) int {
+func funcBreak_3(a int) int {
 	sum := 0
 	for i := 0; i < a; i++ { // +1
 		if i > 100 { // +2
@@ -90,7 +101,7 @@ func funcBreak3(a int) int {
 	return sum
 }
 
-func funcBreak7(a int) int {
+func funcBreak_7(a int) int {
 	sum := 0
 out:
 	for i := 0; i < a; i++ { // +1
@@ -104,7 +115,7 @@ out:
 	return sum
 }
 
-func funcFunc4(a int) func(b int) int {
+func funcFunc_4(a int) func(b int) int {
 	return func(b int) int {
 		if a < 0 { // +2
 			return -a
@@ -116,7 +127,7 @@ func funcFunc4(a int) func(b int) int {
 	}
 }
 
-func funcFunc9(a, b, c, d int) func(x int) int {
+func funcFunc_9(a, b, c, d int) func(x int) int {
 	switch { // +1
 	default:
 		return func(x int) int { return x }
@@ -139,7 +150,7 @@ func funcFunc9(a, b, c, d int) func(x int) int {
 	}
 }
 
-func funcSwitch1(a int) int {
+func funcSwitch_1(a int) int {
 	switch a { // +1
 	case 0:
 		return a
@@ -153,7 +164,7 @@ func funcSwitch1(a int) int {
 	return -1
 }
 
-func funcSwitch3(a int) int {
+func funcSwitch_3(a int) int {
 	switch b := a + 1; b { // +1
 	case 0:
 		return b
@@ -170,7 +181,7 @@ func funcSwitch3(a int) int {
 	return 0
 }
 
-func funcSwitch4(a int) int {
+func funcSwitch_4(a int) int {
 	switch {
 	case a == 0: // +1
 		return a
@@ -182,7 +193,7 @@ func funcSwitch4(a int) int {
 	return a + 100
 }
 
-func funcSwitchType1(a interface{}) int {
+func funcSwitchType_1(a interface{}) int {
 	switch v := a.(type) { // +1
 	case int:
 		return v
@@ -193,7 +204,7 @@ func funcSwitchType1(a interface{}) int {
 	}
 }
 
-func funcIfSwith9(a, b, c, d int) int {
+func funcIfSwith_9(a, b, c, d int) int {
 	if a == 0 { // +1
 		switch b { // +2
 		case 1:
@@ -224,7 +235,7 @@ func funcIfSwith9(a, b, c, d int) int {
 	return a + b
 }
 
-func funcSelect1() int {
+func funcSelect_1() int {
 	a := make(chan int)
 	b := make(chan int)
 	select { // +1
@@ -233,4 +244,13 @@ func funcSelect1() int {
 	case v := <-b:
 		return v
 	}
+}
+
+func funcDefer_2(a, b, c int) int {
+	defer func() {
+		if err := recover(); err != nil { // +2
+			log.Print("recover: ", err)
+		}
+	}()
+	return (a + b) % c
 }
