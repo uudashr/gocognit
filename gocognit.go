@@ -424,17 +424,25 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 	ops := v.collectBinaryOps(n)
 
 	var lastOp token.Token
+	cache := make([]token.Token, 0, len(ops)/3)
 	for _, op := range ops {
 		v.log.Printf("op: %s", op.String())
 		switch op {
 		default:
-			continue
+			// v.log.Printf("xxx op skip: %s", op.String())
 
-		case token.LPAREN, token.RPAREN:
+		case token.LPAREN:
+			// v.log.Printf("xxx op paren %d op: %s, last: %s", len(cache), op.String(), lastOp.String())
+			cache = append(cache, lastOp)
 			lastOp = op
-			continue
+
+		case token.RPAREN:
+			lastOp = cache[len(cache)-1]
+			cache = cache[:len(cache)-1]
+			// v.log.Printf("xxx op paren %d op: %s, last: %s", len(cache), op.String(), lastOp.String())
 
 		case token.LAND, token.LOR:
+			// v.log.Printf("xxx op: %s, last: %s", op.String(), lastOp.String())
 			if lastOp != op {
 				v.incComplexity()
 			}
@@ -462,6 +470,7 @@ func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 	switch exp := exp.(type) {
 	case *ast.BinaryExpr:
 		return mergeBinaryOps(v.collectBinaryOps(exp.X), exp.Op, v.collectBinaryOps(exp.Y))
+
 	case *ast.ParenExpr:
 		// interest only on what inside paranthese
 		ops := v.collectBinaryOps(exp.X)
@@ -473,6 +482,7 @@ func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 
 	case *ast.UnaryExpr:
 		return v.collectBinaryOps(exp.X)
+
 	default:
 		return []token.Token{}
 	}
