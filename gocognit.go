@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"io"
 	"log"
 	"os"
 	"reflect"
@@ -82,7 +81,7 @@ func typeName(i interface{}) string {
 
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fset *token.FileSet, fn *ast.FuncDecl) int {
-	l := log.New(io.Discard, "", 0)
+	l := log.New(ioDiscard{}, "", 0)
 	if _, ok := _debugs[funcName(fn)]; ok {
 		l = _log
 	}
@@ -92,11 +91,11 @@ func Complexity(fset *token.FileSet, fn *ast.FuncDecl) int {
 		name: fn.Name,
 	}
 
-	v.log.Printf("*** %s begin ***", v.name)
+	v.log.Printf("***** %s begin *****", v.name)
 
 	ast.Walk(&v, fn)
 
-	v.log.Printf("*** %s end ***", v.name)
+	v.log.Printf("***** %s end *****", v.name)
 	v.log.Print("")
 	return v.complexity
 }
@@ -135,22 +134,27 @@ func (v *complexityVisitor) decLevel() string {
 
 func (v *complexityVisitor) incNesting() {
 	v.nesting++
-	v.log.Printf("nesting +1. %d", v.nesting)
+	v.log.Printf("nesting +1. after: %d", v.nesting)
 }
 
 func (v *complexityVisitor) decNesting() {
-	v.log.Printf("nesting -1. %d", v.nesting)
+	v.log.Printf("nesting -1. before: %d", v.nesting)
 	v.nesting--
 }
 
 func (v *complexityVisitor) incComplexity() {
-	v.log.Printf("+1 incComplexity")
+	v.log.Printf("*** incComplexity +1")
 	v.complexity++
 }
 
 func (v *complexityVisitor) nestIncComplexity() {
-	v.log.Printf("+%d nestIncComplexity", v.nesting+1)
+	v.log.Printf("*** nestIncComplexity +%d", v.nesting+1)
 	v.complexity += (v.nesting + 1)
+}
+
+func (v *complexityVisitor) nestIncComplexityOnly() {
+	v.log.Printf("*** nestIncComplexityOnly +%d", v.nesting)
+	v.complexity += v.nesting
 }
 
 func (v *complexityVisitor) markAsElseNode(n ast.Node) {
@@ -216,8 +220,6 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 		fn = func() ast.Visitor { return v.visitBinaryExpr(n) }
 	case *ast.CallExpr:
 		fn = func() ast.Visitor { return v.visitCallExpr(n) }
-	case *ast.CaseClause:
-		fn = func() ast.Visitor { return v.visitCaseClause(n) }
 	}
 
 	v.log.Printf("%s begin %s", typeName(n), v.incLevel())
@@ -273,19 +275,51 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 		v.log.Print("switch init end", typeName(n))
 	}
 
-	if n := n.Tag; n != nil {
+	if tag := n.Tag; tag != nil {
 		v.nestIncComplexity()
-		v.log.Print("switch tag begin", typeName(n))
-		ast.Walk(v, n)
-		v.log.Print("switch tag end", typeName(n))
+		v.log.Print("switch tag begin", typeName(tag))
+		ast.Walk(v, tag)
+		v.log.Print("switch tag end", typeName(tag))
+
+		v.incNesting()
+		v.log.Print("switch tag body begin")
+		for _, tmp := range n.Body.List {
+			n, _ := tmp.(*ast.CaseClause)
+			for _, n := range n.Body {
+				ast.Walk(v, n)
+			}
+		}
+		v.log.Print("switch tag body end")
+		v.decNesting()
+		return nil
 	}
 
+	if len(n.Body.List) == 0 {
+		v.log.Print("switch body is empty")
+		return nil
+	}
+
+	v.nestIncComplexity()
+
 	v.incNesting()
-
 	v.log.Print("switch body begin")
-	ast.Walk(v, n.Body)
-	v.log.Print("switch body end")
 
+	for i, tmp := range n.Body.List {
+		if i != 0 {
+			v.incComplexity()
+		}
+
+		n, _ := tmp.(*ast.CaseClause)
+		for _, expr := range n.List {
+			ast.Walk(v, expr)
+		}
+		for _, n := range n.Body {
+			ast.Walk(v, n)
+		}
+	}
+	ast.Walk(v, n.Body)
+
+	v.log.Print("switch body end")
 	v.decNesting()
 	return nil
 }
@@ -376,21 +410,6 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 		v.incComplexity()
 	}
 	return v
-}
-
-func (v *complexityVisitor) visitCaseClause(n *ast.CaseClause) ast.Visitor {
-	for _, expr := range n.List {
-		if n, _ := expr.(*ast.BinaryExpr); n != nil {
-			v.incComplexity()
-		}
-
-		ast.Walk(v, expr)
-	}
-
-	for _, n := range n.Body {
-		ast.Walk(v, n)
-	}
-	return nil
 }
 
 func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
@@ -512,4 +531,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	})
 
 	return nil, nil
+}
+
+type ioDiscard struct{}
+
+func (ioDiscard) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+func (ioDiscard) WriteString(s string) (int, error) {
+	return len(s), nil
 }
