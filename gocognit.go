@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	_log    = log.New(os.Stderr, "debug ", log.Lshortfile)
-	_debugs map[string]struct{}
+	_logDiscard = log.New(ioDiscard{}, "", 0)
+	_debug      bool
 )
 
-func SetDebugs(d map[string]struct{}) { _debugs = d }
+func SetDebug(enable bool) { _debug = enable }
 
 // Stat is statistic of the complexity.
 type Stat struct {
@@ -82,8 +82,9 @@ func typeName(i interface{}) string {
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fset *token.FileSet, fn *ast.FuncDecl) int {
 	l := log.New(ioDiscard{}, "", 0)
-	if _, ok := _debugs[funcName(fn)]; ok {
-		l = _log
+	if _debug {
+		l = log.New(os.Stdout, fmt.Sprintf("debug %s ", funcName(fn)),
+			log.Lshortfile|log.LstdFlags)
 	}
 	v := complexityVisitor{
 		log:  l,
@@ -283,11 +284,15 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 
 		v.incNesting()
 		v.log.Print("switch tag body begin")
-		for _, tmp := range n.Body.List {
+		for i, tmp := range n.Body.List {
+			v.log.Printf("switch tag case begin. *%d*", i)
+
 			n, _ := tmp.(*ast.CaseClause)
 			for _, n := range n.Body {
 				ast.Walk(v, n)
 			}
+
+			v.log.Printf("switch tag case end. *%d*", i)
 		}
 		v.log.Print("switch tag body end")
 		v.decNesting()
@@ -299,13 +304,13 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 		return nil
 	}
 
-	v.nestIncComplexity()
-
-	v.incNesting()
 	v.log.Print("switch body begin")
-
 	for i, tmp := range n.Body.List {
-		if i != 0 {
+		v.log.Printf("switch case begin. *%d*", i)
+
+		if i == 0 {
+			v.nestIncComplexity()
+		} else {
 			v.incComplexity()
 		}
 
@@ -313,14 +318,16 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 		for _, expr := range n.List {
 			ast.Walk(v, expr)
 		}
+
+		v.incNesting()
 		for _, n := range n.Body {
 			ast.Walk(v, n)
 		}
-	}
-	ast.Walk(v, n.Body)
+		v.decNesting()
 
+		v.log.Printf("switch case end. *%d*", i)
+	}
 	v.log.Print("switch body end")
-	v.decNesting()
 	return nil
 }
 
