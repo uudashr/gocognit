@@ -66,7 +66,7 @@ func funcIfElse_6(a, b, c int) int {
 }
 
 func funcIfParen_5(a, b, c, d, e int) int {
-	if (a > 10 || a < -100) && ((b < 10000 && b > 10 && d > 1000) || c > 100) && e > 10 { // +5
+	if (a > 10 || a < -100) && (!(b < 10000 && b > 10 && d > 1000) || c > 100) && e > 10 { // +5
 		return a
 	}
 	return b
@@ -101,7 +101,7 @@ func funcBreak_3(a int) int {
 	return sum
 }
 
-func funcBreak_7(a int) int {
+func funcBreakLabel_7(a int) int {
 	sum := 0
 out:
 	for i := 0; i < a; i++ { // +1
@@ -124,6 +124,14 @@ func funcFunc_4(a int) func(b int) int {
 			return a + b
 		}
 		return a * b
+	}
+}
+
+func funcRecursion_3(n int) int {
+	if n <= 1 { // +1
+		return 1
+	} else { // +1
+		return n * funcRecursion_3(n-1) // +1
 	}
 }
 

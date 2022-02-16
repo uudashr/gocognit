@@ -8,10 +8,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 var (
@@ -420,6 +416,12 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
+	if v.isCalculated(n) {
+		ast.Walk(v, n.X)
+		ast.Walk(v, n.Y)
+		return nil
+	}
+
 	// v.printBody(n)
 	ops := v.collectBinaryOps(n)
 
@@ -448,9 +450,10 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 			}
 			lastOp = op
 		}
-
 	}
 
+	ast.Walk(v, n.X)
+	ast.Walk(v, n.Y)
 	return nil
 }
 
@@ -506,48 +509,6 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 		out = append(out, y...)
 	}
 	return out
-}
-
-const Doc = `Find complex function using cognitive complexity calculation.
-
-The gocognit analysis reports functions or methods which the complexity is over
-than the specified limit.`
-
-// Analyzer reports a diagnostic for every function or method which is
-// too complex specified by its -over flag.
-var Analyzer = &analysis.Analyzer{
-	Name:     "gocognit",
-	Doc:      Doc,
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
-	Run:      run,
-}
-
-var (
-	over int // -over flag
-)
-
-func init() {
-	Analyzer.Flags.IntVar(&over, "over", over, "show functions with complexity > N only")
-}
-
-func run(pass *analysis.Pass) (interface{}, error) {
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-
-	nodeFilter := []ast.Node{
-		(*ast.FuncDecl)(nil),
-	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		fnDecl := n.(*ast.FuncDecl)
-
-		fnName := funcName(fnDecl)
-		fnComplexity := Complexity(nil, fnDecl)
-
-		if fnComplexity > over {
-			pass.Reportf(fnDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)
-		}
-	})
-
-	return nil, nil
 }
 
 type ioDiscard struct{}
