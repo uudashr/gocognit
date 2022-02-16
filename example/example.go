@@ -170,6 +170,37 @@ func funcSwitchType1(a interface{}) int {
 	}
 }
 
+func funcIfSwith9(a, b, c, d int) int {
+	if a == 0 { // +1
+		switch b { // +2
+		case 1:
+			return 2
+		case 2:
+			return -1
+		case -1:
+			return 1
+		default:
+			return b
+		}
+	} else if a > 1000 { // +1
+		switch {
+		case c > 10000: // +2
+			return c
+		case c > 100: // +1
+			return b
+		case c > 10: // +1
+			return d
+		default: // +1
+			return a
+		}
+	}
+
+	switch {
+	}
+
+	return a + b
+}
+
 func funcSelect1() int {
 	a := make(chan int)
 	b := make(chan int)
