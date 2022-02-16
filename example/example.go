@@ -116,6 +116,29 @@ func funcFunc4(a int) func(b int) int {
 	}
 }
 
+func funcFunc9(a, b, c, d int) func(x int) int {
+	switch { // +1
+	default:
+		return func(x int) int { return x }
+
+	case a > 10000: // +1
+		return func(x int) int {
+			if x < 10000 { // +3
+				return c + x
+			}
+			return a + x
+		}
+
+	case a > 100: // +1
+		return func(x int) int {
+			if x > 100 { // +3
+				return d + x
+			}
+			return b + x
+		}
+	}
+}
+
 func funcSwitch1(a int) int {
 	switch a { // +1
 	case 0:
