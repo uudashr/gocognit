@@ -31,17 +31,17 @@ func IfElseNested(n int) string {
 	return "others"
 } // total complexity = 3
 
-func IfElseIfNested(n int) string {
+func IfElseIfNested(n int) string { // want "cognitive complexity 4 of func IfElseIfNested is high \\(> 3\\)"
 	if n == 100 { // +1
 		return "a hundred"
 	} else if n < 300 { // + 1
-		if n == 200 { // + 1
+		if n == 200 { // + 2
 			return "two hundred"
 		}
 	}
 
 	return "others"
-} // total complexity = 3
+} // total complexity = 4
 
 func SimpleLogicalSeq1(a, b, c, d bool) string {
 	if a && b && c && d { // +1 for `if`, +1 for `&&` sequence
