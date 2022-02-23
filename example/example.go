@@ -72,6 +72,26 @@ func funcIfParen_5(a, b, c, d, e int) int {
 	return b
 }
 
+func funcLogicalExpr_1(a, b, c, d, e int) bool {
+	return a > 10 || !(b > 1000) || c < 100 // +1
+}
+
+func funcLogicalExpr_2(a, b, c, d, e int) bool {
+	return a > 10 || b > 1000 && c < 100 // +2
+}
+
+func funcLogicalExpr_3(a, b, c, d, e int) bool {
+	return a > 10 || b > 1000 && c < 100 || d > -10 // +3
+}
+
+func funcLogicalExpr_4(a, b, c, d, e int) bool {
+	return (a > 10 || a < -100) && ((b < 10000 && b > 10 && d > 1000) || c > 100) && e > 10 // +4
+}
+
+func funcLogicalExpr_5(a, b, c, d, e int) bool {
+	return (a > 10 || a < -100) && ((b < 10000 && (b > 10 && d > 1000)) || c > 100) && e > 10 // +5
+}
+
 func funcFor_1(a int) int {
 	s := 0
 	for i := 0; i < a; i++ {
