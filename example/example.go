@@ -32,7 +32,7 @@ func funcIf_4(a, b, c, d bool) int {
 func funcIfElse_2(a int) int {
 	if a > 0 { // +1
 		a++
-	} else if a < 0 { // +2
+	} else if a < 0 { // +1
 		a--
 	}
 	return a
@@ -54,7 +54,7 @@ func funcIfElse_6(a, b, c int) int {
 		return a
 
 	} else if a > 1 { // +1
-		if b < 10000 { // +2
+		if b < 10000 { // +2 (nesting +1)
 			return b
 		} else if b < 10 { // +1
 			return a + b
@@ -94,7 +94,7 @@ func funcLogicalExpr_5(a, b, c, d, e int) bool {
 
 func funcFor_1(a int) int {
 	s := 0
-	for i := 0; i < a; i++ {
+	for i := 0; i < a; i++ { // +1
 		s += i
 	}
 	return s
@@ -102,8 +102,8 @@ func funcFor_1(a int) int {
 
 func funcFor_3(a int) int {
 	s := 0
-	for i := 0; i < a; i++ {
-		if i != 10 {
+	for i := 0; i < a; i++ { // +1
+		if i != 10 { // +2 (nesting +1)
 			s += i
 		}
 	}
@@ -113,7 +113,7 @@ func funcFor_3(a int) int {
 func funcBreak_3(a int) int {
 	sum := 0
 	for i := 0; i < a; i++ { // +1
-		if i > 100 { // +2
+		if i > 100 { // +2 (nesting +1)
 			break
 		}
 		sum += i
@@ -125,9 +125,9 @@ func funcBreakLabel_7(a int) int {
 	sum := 0
 out:
 	for i := 0; i < a; i++ { // +1
-		for j := 0; j < a; j++ { // +2
+		for j := 0; j < a; j++ { // +2 (nesting +1)
 			sum += i * j
-			if j > 100 { // +3
+			if j > 100 { // +3 (nesting +2)
 				break out // +1
 			}
 		}
@@ -137,10 +137,10 @@ out:
 
 func funcFunc_4(a int) func(b int) int {
 	return func(b int) int {
-		if a < 0 { // +2
+		if a < 0 { // +2 (nesting +1)
 			return -a
 		}
-		if a < 10 { // +2
+		if a < 10 { // +2 (nesting +1)
 			return a + b
 		}
 		return a * b
@@ -162,7 +162,7 @@ func funcFunc_9(a, b, c, d int) func(x int) int {
 
 	case a > 10000: // +1
 		return func(x int) int {
-			if x < 10000 { // +3
+			if x < 10000 { // +3 (nesting +2)
 				return c + x
 			}
 			return a + x
@@ -170,7 +170,7 @@ func funcFunc_9(a, b, c, d int) func(x int) int {
 
 	case a > 100: // +1
 		return func(x int) int {
-			if x > 100 { // +3
+			if x > 100 { // +3 (nesting +2)
 				return d + x
 			}
 			return b + x
@@ -201,7 +201,7 @@ func funcSwitch_3(a int) int {
 	case -1, 2:
 		return a - 1
 	case 3:
-		if b < 3 { // +2
+		if b < 3 { // +2 (nesting +1)
 			return a * b
 		}
 		return a + b
@@ -234,7 +234,7 @@ func funcSwitchType_1(a interface{}) int {
 
 func funcIfSwith_9(a, b, c, d int) int {
 	if a == 0 { // +1
-		switch b { // +2
+		switch b { // +2 (nesting +1)
 		case 1:
 			return 2
 		case 2:
@@ -246,7 +246,7 @@ func funcIfSwith_9(a, b, c, d int) int {
 		}
 	} else if a > 1000 { // +1
 		switch {
-		case c > 10000: // +2
+		case c > 10000: // +2 (nesting +1)
 			return c
 		case c > 100: // +1
 			return b
@@ -276,7 +276,7 @@ func funcSelect_1() int {
 
 func funcDefer_2(a, b, c int) int {
 	defer func() {
-		if err := recover(); err != nil { // +2
+		if err := recover(); err != nil { // +2 (nesting +1)
 			log.Print("recover: ", err)
 		}
 	}()
