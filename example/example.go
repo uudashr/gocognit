@@ -10,6 +10,8 @@ import (
 
 // doc: https://sonarsource.com/docs/CognitiveComplexity.pdf
 
+// The tail numbers of function names is the cognitive complexity of the functions
+
 func funcIf_1(a int) int {
 	if a != 0 { // +1
 		return a + 1

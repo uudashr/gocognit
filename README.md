@@ -122,6 +122,7 @@ Cognitive complexity give higher score compare to cyclomatic complexity.
 The cognitive complexity of a function is calculated according to the
 following rules:
 > Note: these rules are specific for Go, please see the [original whitepaper](https://www.sonarsource.com/docs/CognitiveComplexity.pdf) for more complete reference.
+> Example: these example are specific for Go, please see the [example/example.go](https://github.com/distroy/gocognit/blob/master/example/example.go) for more complete reference.
 
 ### Increments
 There is an increment for each of the following:
@@ -160,18 +161,32 @@ $ go get github.com/distroy/gocognit/cmd/gocognit
 ## Usage
 
 ```
-$ gocognit
+$ gocognit -h
 Calculate cognitive complexities of Go functions.
 Usage:
         gocognit [flags] <Go file or directory> ...
+<Go file or directory>:
+        default current directory
 Flags:
-        -over N   show functions with complexity > N only and
-                  return exit code 1 if the set is non-empty
-        -top N    show the top N most complex functions only
-        -avg      show the average complexity over all functions,
-                  not depending on whether -over or -top are set
+        -over <N>   show functions with complexity > N only and
+                    return exit code 1 if the set is non-empty
+        -top <N>    show the top N most complex functions only
+        -avg        show the average complexity over all functions,
+                    not depending on whether -over or -top are set
+        -include <regexp>
+                    the regexp for include pathes
+        -exclude <regexp>
+                    the regexp for exclude pathes
+                    default:
+                        ^vendor/
+                        /vendor/
+                        \.pb\.go$
+
 The output fields for each line are:
-<complexity> <package> <function> <file:row:column>
+<complexity> <package> <function> <file:begin_row,end_row>
+
+The document of cognitive complexity:
+https://sonarsource.com/docs/CognitiveComplexity.pdf
 ```
 
 Examples:
@@ -186,9 +201,10 @@ $ gocognit -avg .
 
 The output fields for each line are:
 ```
-<complexity> <package> <function> <file:row:column>
+<complexity> <package> <function> <file:begin_row,end_row>
 ```
 
 ## Related project
 - [Gocyclo](https://github.com/fzipp/gocyclo) where the code are based on.
 - [Cognitive Complexity: A new way of measuring understandability](https://www.sonarsource.com/docs/CognitiveComplexity.pdf) white paper by G. Ann Campbell.
+- [example/example.go](https://github.com/distroy/gocognit/blob/master/example/example.go)
