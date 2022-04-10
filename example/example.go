@@ -8,6 +8,8 @@ import (
 	"log"
 )
 
+// doc: https://sonarsource.com/docs/CognitiveComplexity.pdf
+
 func funcIf_1(a int) int {
 	if a != 0 { // +1
 		return a + 1

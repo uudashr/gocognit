@@ -49,8 +49,12 @@ Flags:
                         ^vendor/
                         /vendor/
                         \.pb\.go$
+
 The output fields for each line are:
 <complexity> <package> <function> <file:begin_row,end_row>
+
+The document of cognitive complexity:
+https://sonarsource.com/docs/CognitiveComplexity.pdf
 `
 
 func usage() {

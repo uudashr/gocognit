@@ -15,6 +15,8 @@ import (
 	"github.com/distroy/gocognit"
 )
 
+// doc: https://sonarsource.com/docs/CognitiveComplexity.pdf
+
 func getFileLine() (string, int) {
 	_, file, line, _ := runtime.Caller(1)
 	return file, line
