@@ -150,6 +150,10 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 		return v.visitBinaryExpr(n)
 	case *ast.CallExpr:
 		return v.visitCallExpr(n)
+	case *ast.DeferStmt:
+		return v.visitDeferStmt(n)
+	case *ast.GoStmt:
+		return v.visitGoStmt(n)
 	}
 	return v
 }
@@ -328,6 +332,20 @@ func (v *complexityVisitor) incIfComplexity(n *ast.IfStmt) {
 	} else {
 		v.nestIncComplexity()
 	}
+}
+
+func (v *complexityVisitor) visitDeferStmt(n *ast.DeferStmt) ast.Visitor {
+	v.incNesting()
+	ast.Walk(v, n.Call.Fun)
+	v.incNesting()
+	return v
+}
+
+func (v *complexityVisitor) visitGoStmt(n *ast.GoStmt) ast.Visitor {
+	v.incNesting()
+	ast.Walk(v, n.Call.Fun)
+	v.decNesting()
+	return v
 }
 
 func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.Token {

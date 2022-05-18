@@ -179,3 +179,19 @@ func MyFunc2(a bool) { // want "cognitive complexity 2 of func MyFunc2 is high \
 
 	x()
 } // total complexity = 2
+
+func MyDeferFunc(a bool) {
+	defer func() {
+		if true {
+			fmt.Fprintln(io.Discard, "discarded")
+		}
+	}()
+}
+
+func MyGoRoutine(a bool) {
+	go func() {
+		if true {
+			fmt.Fprintln(io.Discard, "discarded")
+		}
+	}()
+}
