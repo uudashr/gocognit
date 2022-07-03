@@ -5,11 +5,10 @@ package gocognit
 
 import (
 	"go/ast"
-	"strings"
 )
 
 // recvString returns a string representation of recv of the
-// form "T", "*T", Type[T], Type[T, V], or "BADRECV" (if not a proper receiver type).
+// form "T", "*T", or "BADRECV" (if not a proper receiver type).
 func recvString(recv ast.Expr) string {
 	switch t := recv.(type) {
 	case *ast.Ident:
@@ -17,14 +16,9 @@ func recvString(recv ast.Expr) string {
 	case *ast.StarExpr:
 		return "*" + recvString(t.X)
 	case *ast.IndexExpr:
-		return recvString(t.X) + "[" + recvString(t.Index) + "]"
+		return recvString(t.X)
 	case *ast.IndexListExpr:
-		targs := make([]string, len(t.Indices))
-		for i, exp := range t.Indices {
-			targs[i] = recvString(exp)
-		}
-
-		return recvString(t.X) + "[" + strings.Join(targs, ", ") + "]"
+		return recvString(t.X)
 	}
 	return "BADRECV"
 }
