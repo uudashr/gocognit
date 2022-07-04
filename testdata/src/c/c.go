@@ -34,3 +34,15 @@ func (t *Triple[K, V, T]) String() string { // want "cognitive complexity 1 of f
 
 	return ""
 } // total complexity = 1
+
+type Number interface {
+	int64 | float64
+}
+
+func SumNumbers[K comparable, V Number](m map[K]V) V { // want "cognitive complexity 1 of func SumNumbers is high \\(> 0\\)"
+	var s V
+	for _, v := range m {
+		s += v
+	}
+	return s
+} // total complexity = 1
