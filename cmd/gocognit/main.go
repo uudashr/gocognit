@@ -38,6 +38,8 @@ Flags:
         -top N    show the top N most complex functions only
         -avg      show the average complexity over all functions,
                   not depending on whether -over or -top are set
+        -format string
+                  which format to use, supported formats: [text json json-pretty] (default "text")
 The output fields for each line are:
 <complexity> <package> <function> <file:row:column>
 `
@@ -48,9 +50,14 @@ func usage() {
 }
 
 var (
-	over = flag.Int("over", 0, "show functions with complexity > N only")
-	top  = flag.Int("top", -1, "show the top N most complex functions only")
-	avg  = flag.Bool("avg", false, "show the average complexity")
+	supportedFormats = []string{
+		"text", "json", "json-pretty",
+	}
+
+	over   = flag.Int("over", 0, "show functions with complexity > N only")
+	top    = flag.Int("top", -1, "show the top N most complex functions only")
+	avg    = flag.Bool("avg", false, "show the average complexity")
+	format = flag.String("format", "text", fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
 )
 
 func main() {
@@ -119,15 +126,41 @@ func analyzeDir(dirname string, stats []gocognit.Stat) []gocognit.Stat {
 }
 
 func writeStats(w io.Writer, sortedStats []gocognit.Stat) int {
-	for i, stat := range sortedStats {
-		if i == *top {
-			return i
-		}
-		if stat.Complexity <= *over {
-			return i
-		}
-		fmt.Fprintln(w, stat)
+	filter := gocognit.Filter{}
+	// top filter
+	filter.AddFilter(func(_ gocognit.Stat, i int) bool {
+		return i < *top
+	})
+
+	// over filter
+	filter.AddFilter(func(stat gocognit.Stat, _ int) bool {
+		return stat.Complexity > *over
+	})
+
+	var formatter gocognit.Formatter
+
+	switch *format {
+	case "text":
+		formatter = gocognit.NewTextFormatter(w)
+		break
+	case "json":
+		formatter = gocognit.NewJsonFormatter(w, false)
+		break
+	case "json-pretty":
+		formatter = gocognit.NewJsonFormatter(w, true)
+		break
+	default:
+		fmt.Printf("Format '%s' is not valid, use a supported format %v", *format, supportedFormats)
+		os.Exit(1)
 	}
+
+	filtered := filter.Apply(sortedStats)
+
+	err := formatter.Write(filtered)
+	if err != nil {
+		panic(err)
+	}
+
 	return len(sortedStats)
 }
 
