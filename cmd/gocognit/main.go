@@ -45,17 +45,24 @@ The output fields for each line are:
 `
 
 func usage() {
-	fmt.Fprint(os.Stderr, usageDoc)
+	_, _ = fmt.Fprint(os.Stderr, usageDoc)
 	os.Exit(2)
 }
 
+const (
+	defaultValueIndicator = -1
+	textFormat            = "text"
+	jsonFormat            = "json"
+	jsonPrettyFormat      = "json-pretty"
+)
+
 var (
 	supportedFormats = []string{
-		"text", "json", "json-pretty",
+		textFormat, jsonFormat, jsonPrettyFormat,
 	}
 
-	over   = flag.Int("over", 0, "show functions with complexity > N only")
-	top    = flag.Int("top", -1, "show the top N most complex functions only")
+	over   = flag.Int("over", defaultValueIndicator, "show functions with complexity > N only")
+	top    = flag.Int("top", defaultValueIndicator, "show the top N most complex functions only")
 	avg    = flag.Bool("avg", false, "show the average complexity")
 	format = flag.String("format", "text", fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
 )
@@ -127,26 +134,26 @@ func analyzeDir(dirname string, stats []gocognit.Stat) []gocognit.Stat {
 
 func writeStats(w io.Writer, sortedStats []gocognit.Stat) int {
 	filter := gocognit.Filter{}
-	// top filter
-	filter.AddFilter(func(_ gocognit.Stat, i int) bool {
-		return i < *top
-	})
+	if *top != defaultValueIndicator {
+		// top filter
+		filter.AddFilter(gocognit.NewTopFilter(*top))
+	}
 
-	// over filter
-	filter.AddFilter(func(stat gocognit.Stat, _ int) bool {
-		return stat.Complexity > *over
-	})
+	if *over != defaultValueIndicator {
+		// over filter
+		filter.AddFilter(gocognit.NewComplexityFilter(*over))
+	}
 
 	var formatter gocognit.Formatter
 
 	switch *format {
-	case "text":
+	case textFormat:
 		formatter = gocognit.NewTextFormatter(w)
 		break
-	case "json":
+	case jsonFormat:
 		formatter = gocognit.NewJsonFormatter(w, false)
 		break
-	case "json-pretty":
+	case jsonPrettyFormat:
 		formatter = gocognit.NewJsonFormatter(w, true)
 		break
 	default:
