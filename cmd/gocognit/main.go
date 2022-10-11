@@ -66,7 +66,7 @@ var (
 	over   = flag.Int("over", defaultValueIndicator, "show functions with complexity > N only")
 	top    = flag.Int("top", defaultValueIndicator, "show the top N most complex functions only")
 	avg    = flag.Bool("avg", false, "show the average complexity")
-	format = flag.String("format", "text", fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
+	format = flag.String("format", textFormat, fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
 )
 
 func main() {
@@ -85,7 +85,10 @@ func main() {
 	}
 
 	sort.Sort(byComplexity(stats))
-	written := writeStats(os.Stdout, stats)
+	written, err := writeStats(os.Stdout, stats)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if *avg {
 		showAverage(stats)
@@ -163,7 +166,7 @@ func analyzeDir(dirname string, stats []gocognit.Stat) ([]gocognit.Stat, error) 
 	return stats, nil
 }
 
-func writeStats(w io.Writer, sortedStats []gocognit.Stat) int {
+func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
 	filter := gocognit.Filter{}
 	if *top != defaultValueIndicator {
 		// top filter
@@ -196,10 +199,10 @@ func writeStats(w io.Writer, sortedStats []gocognit.Stat) int {
 
 	err := formatter.Write(filtered)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
-	return len(sortedStats)
+	return len(sortedStats), nil
 }
 
 func showAverage(stats []gocognit.Stat) {
