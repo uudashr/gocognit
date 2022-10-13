@@ -13,7 +13,7 @@ func NewTextFormatter(writer io.Writer) TextFormatter {
 	return TextFormatter{writer: writer}
 }
 
-func (t TextFormatter) Write(stats []Stat) error {
+func (t TextFormatter) Format(stats []Stat) error {
 
 	for _, stat := range stats {
 		_, err := fmt.Fprintln(t.writer, stat)

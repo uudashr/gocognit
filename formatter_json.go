@@ -14,7 +14,7 @@ func NewJsonFormatter(writer io.Writer, withIndentation bool) JsonFormatter {
 	return JsonFormatter{writer, withIndentation}
 }
 
-func (t JsonFormatter) Write(stats []Stat) error {
+func (t JsonFormatter) Format(stats []Stat) error {
 	encoder := json.NewEncoder(t.writer)
 
 	if t.withIndentation {

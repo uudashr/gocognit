@@ -1,5 +1,5 @@
 package gocognit
 
 type Formatter interface {
-	Write([]Stat) error
+	Format([]Stat) error
 }

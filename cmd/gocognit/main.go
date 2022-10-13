@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"go/parser"
@@ -166,6 +167,8 @@ func analyzeDir(dirname string, stats []gocognit.Stat) ([]gocognit.Stat, error) 
 	return stats, nil
 }
 
+var errFormatNotDefined = errors.New(fmt.Sprintf("Format is not valid, use a supported format %v", supportedFormats))
+
 func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
 	filter := gocognit.Filter{}
 	if *top != defaultValueIndicator {
@@ -191,13 +194,12 @@ func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
 		formatter = gocognit.NewJsonFormatter(w, true)
 		break
 	default:
-		fmt.Printf("Format '%s' is not valid, use a supported format %v", *format, supportedFormats)
-		os.Exit(1)
+		return 0, errFormatNotDefined
 	}
 
 	filtered := filter.Apply(sortedStats)
 
-	err := formatter.Write(filtered)
+	err := formatter.Format(filtered)
 	if err != nil {
 		return 0, err
 	}
