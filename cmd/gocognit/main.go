@@ -59,6 +59,8 @@ const (
 	jsonPrettyFormat      = "json-pretty"
 )
 
+var errFormatNotDefined = fmt.Errorf("format is not valid, use a supported format %v", supportedFormats)
+
 var (
 	supportedFormats = []string{
 		textFormat, jsonFormat, jsonPrettyFormat,
@@ -69,6 +71,11 @@ var (
 	avg    = flag.Bool("avg", false, "show the average complexity")
 	format = flag.String("format", textFormat, fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
 )
+
+func usage() {
+	_, _ = fmt.Fprint(os.Stderr, usageDoc)
+	os.Exit(2)
+}
 
 func main() {
 	log.SetFlags(0)
