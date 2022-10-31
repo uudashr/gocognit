@@ -17,7 +17,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"go/parser"
@@ -47,16 +46,15 @@ The output fields for each line are:
 <complexity> <package> <function> <file:row:column>
 `
 
-func usage() {
-	_, _ = fmt.Fprint(os.Stderr, usageDoc)
-	os.Exit(2)
-}
+const (
+	defaultOverFlagVal = -1
+	defaultTopFlagVal  = 0
+)
 
 const (
-	defaultValueIndicator = -1
-	textFormat            = "text"
-	jsonFormat            = "json"
-	jsonPrettyFormat      = "json-pretty"
+	textFormat       = "text"
+	jsonFormat       = "json"
+	jsonPrettyFormat = "json-pretty"
 )
 
 var errFormatNotDefined = fmt.Errorf("format is not valid, use a supported format %v", supportedFormats)
@@ -66,8 +64,8 @@ var (
 		textFormat, jsonFormat, jsonPrettyFormat,
 	}
 
-	over   = flag.Int("over", defaultValueIndicator, "show functions with complexity > N only")
-	top    = flag.Int("top", defaultValueIndicator, "show the top N most complex functions only")
+	over   = flag.Int("over", defaultOverFlagVal, "show functions with complexity > N only")
+	top    = flag.Int("top", defaultTopFlagVal, "show the top N most complex functions only")
 	avg    = flag.Bool("avg", false, "show the average complexity")
 	format = flag.String("format", textFormat, fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
 )
@@ -174,16 +172,14 @@ func analyzeDir(dirname string, stats []gocognit.Stat) ([]gocognit.Stat, error) 
 	return stats, nil
 }
 
-var errFormatNotDefined = errors.New(fmt.Sprintf("Format is not valid, use a supported format %v", supportedFormats))
-
 func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
 	filter := gocognit.Filter{}
-	if *top != defaultValueIndicator {
+	if *top != 0 {
 		// top filter
 		filter.AddFilter(gocognit.NewTopFilter(*top))
 	}
 
-	if *over != defaultValueIndicator {
+	if *over != -1 {
 		// over filter
 		filter.AddFilter(gocognit.NewComplexityFilter(*over))
 	}
@@ -193,13 +189,10 @@ func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
 	switch *format {
 	case textFormat:
 		formatter = gocognit.NewTextFormatter(w)
-		break
 	case jsonFormat:
 		formatter = gocognit.NewJsonFormatter(w, false)
-		break
 	case jsonPrettyFormat:
 		formatter = gocognit.NewJsonFormatter(w, true)
-		break
 	default:
 		return 0, errFormatNotDefined
 	}
