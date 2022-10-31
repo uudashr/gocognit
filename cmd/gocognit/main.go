@@ -47,8 +47,8 @@ The output fields for each line are:
 `
 
 const (
-	defaultOverFlagVal = -1
-	defaultTopFlagVal  = 0
+	defaultOverFlagVal = 0
+	defaultTopFlagVal  = -1
 )
 
 const (
