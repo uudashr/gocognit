@@ -173,19 +173,7 @@ func analyzeDir(dirname string, stats []gocognit.Stat) ([]gocognit.Stat, error) 
 }
 
 func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
-	filter := gocognit.Filter{}
-	if *top != 0 {
-		// top filter
-		filter.AddFilter(gocognit.NewTopFilter(*top))
-	}
-
-	if *over != -1 {
-		// over filter
-		filter.AddFilter(gocognit.NewComplexityFilter(*over))
-	}
-
 	var formatter gocognit.Formatter
-
 	switch *format {
 	case textFormat:
 		formatter = gocognit.NewTextFormatter(w)
@@ -197,14 +185,25 @@ func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
 		return 0, errFormatNotDefined
 	}
 
-	filtered := filter.Apply(sortedStats)
+	var filtered []gocognit.Stat
+	for i, stat := range sortedStats {
+		if i == *top {
+			break
+		}
+
+		if stat.Complexity <= *over {
+			break
+		}
+
+		filtered = append(filtered, stat)
+	}
 
 	err := formatter.Format(filtered)
 	if err != nil {
 		return 0, err
 	}
 
-	return len(sortedStats), nil
+	return len(filtered), nil
 }
 
 func showAverage(stats []gocognit.Stat) {
