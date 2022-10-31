@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"go/parser"
@@ -40,19 +41,33 @@ Flags:
         -top N    show the top N most complex functions only
         -avg      show the average complexity over all functions,
                   not depending on whether -over or -top are set
+        -format string
+                  which format to use, supported formats: [text json json-pretty] (default "text")
 The output fields for each line are:
 <complexity> <package> <function> <file:row:column>
 `
 
 func usage() {
-	fmt.Fprint(os.Stderr, usageDoc)
+	_, _ = fmt.Fprint(os.Stderr, usageDoc)
 	os.Exit(2)
 }
 
+const (
+	defaultValueIndicator = -1
+	textFormat            = "text"
+	jsonFormat            = "json"
+	jsonPrettyFormat      = "json-pretty"
+)
+
 var (
-	over = flag.Int("over", 0, "show functions with complexity > N only")
-	top  = flag.Int("top", -1, "show the top N most complex functions only")
-	avg  = flag.Bool("avg", false, "show the average complexity")
+	supportedFormats = []string{
+		textFormat, jsonFormat, jsonPrettyFormat,
+	}
+
+	over   = flag.Int("over", defaultValueIndicator, "show functions with complexity > N only")
+	top    = flag.Int("top", defaultValueIndicator, "show the top N most complex functions only")
+	avg    = flag.Bool("avg", false, "show the average complexity")
+	format = flag.String("format", textFormat, fmt.Sprintf("which format to use, supported formats: %v", supportedFormats))
 )
 
 func main() {
@@ -71,7 +86,10 @@ func main() {
 	}
 
 	sort.Sort(byComplexity(stats))
-	written := writeStats(os.Stdout, stats)
+	written, err := writeStats(os.Stdout, stats)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if *avg {
 		showAverage(stats)
@@ -149,17 +167,44 @@ func analyzeDir(dirname string, stats []gocognit.Stat) ([]gocognit.Stat, error) 
 	return stats, nil
 }
 
-func writeStats(w io.Writer, sortedStats []gocognit.Stat) int {
-	for i, stat := range sortedStats {
-		if i == *top {
-			return i
-		}
-		if stat.Complexity <= *over {
-			return i
-		}
-		fmt.Fprintln(w, stat)
+var errFormatNotDefined = errors.New(fmt.Sprintf("Format is not valid, use a supported format %v", supportedFormats))
+
+func writeStats(w io.Writer, sortedStats []gocognit.Stat) (int, error) {
+	filter := gocognit.Filter{}
+	if *top != defaultValueIndicator {
+		// top filter
+		filter.AddFilter(gocognit.NewTopFilter(*top))
 	}
-	return len(sortedStats)
+
+	if *over != defaultValueIndicator {
+		// over filter
+		filter.AddFilter(gocognit.NewComplexityFilter(*over))
+	}
+
+	var formatter gocognit.Formatter
+
+	switch *format {
+	case textFormat:
+		formatter = gocognit.NewTextFormatter(w)
+		break
+	case jsonFormat:
+		formatter = gocognit.NewJsonFormatter(w, false)
+		break
+	case jsonPrettyFormat:
+		formatter = gocognit.NewJsonFormatter(w, true)
+		break
+	default:
+		return 0, errFormatNotDefined
+	}
+
+	filtered := filter.Apply(sortedStats)
+
+	err := formatter.Format(filtered)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(sortedStats), nil
 }
 
 func showAverage(stats []gocognit.Stat) {
