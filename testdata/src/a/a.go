@@ -59,6 +59,14 @@ func SimpleLogicalSeq2(a, b, c, d bool) string { // want "cognitive complexity 2
 	return "not ok"
 } // total complexity = 2
 
+func SimpleLogicalSeq3(a, b, c interface{}) string { // want "cognitive complexity 2 of func SimpleLogicalSeq3 is high \\(> 0\\)"
+	if a == nil || b != nil || c != nil { // +1 for `if`, +1 for `||` sequence
+		return "ok"
+	}
+
+	return "not ok"
+} // total complexity = 2
+
 func ComplexLogicalSeq1(a, b, c, d, e, f bool) string { // want "cognitive complexity 4 of func ComplexLogicalSeq1 is high \\(> 0\\)"
 	if a && b && c || d || e && f { // +1 for `if`, +3 for changing sequence of `&&` `||` `&&`
 		return "ok"
@@ -68,12 +76,47 @@ func ComplexLogicalSeq1(a, b, c, d, e, f bool) string { // want "cognitive compl
 } // total complexity = 4
 
 func ComplexLogicalSeq2(a, b, c, d, e, f bool) string { // want "cognitive complexity 3 of func ComplexLogicalSeq2 is high \\(> 0\\)"
-	if a && !(b && c) { // +1 for `if`, +2 for having sequence of `&&` `&&` chain
+	if a && !(b && c) { // +1 for `if`, +1 for each `&&` chain
 		return "ok"
 	}
 
 	return "not ok"
 } // total complexity = 3
+
+func ComplexLogicalSeq3(a, b, c, d, e, f bool) string { // want "cognitive complexity 3 of func ComplexLogicalSeq3 is high \\(> 0\\)"
+	if a && (b && c) { // +1 for `if`, +1 for each `&&` chain
+		return "ok"
+	}
+
+	return "not ok"
+} // total complexity = 3
+
+func ComplexLogicalSeq4(a, b, c, d, e, f bool) bool { // want "cognitive complexity 3 of func ComplexLogicalSeq4 is high \\(> 0\\)"
+	return a && b && c || d || e && f // +3 for changing sequence of `&&` `||` `&&`
+} // total complexity = 3
+
+func ComplexLogicalSeq5(a, b, c, d, e, f bool) bool { // want "cognitive complexity 3 of func ComplexLogicalSeq5 is high \\(> 0\\)"
+	return a && b && (c && d || e || f) // +1 for `&&` sequence, +2 for `&&` `||` sequence in parentheses
+} // total complexity = 3
+
+func ExprFunc(a, b, c any) bool { // want "cognitive complexity 2 of func ExprFunc is high \\(> 0\\)"
+	if a != nil || b != nil || c != nil { // +1 for `if`, +1 for `||` chain
+		return false
+	}
+
+	return true
+} // total complexity = 2
+
+func VarFunc(a, b, c any) bool { // want "cognitive complexity 2 of func VarFunc is high \\(> 0\\)"
+	na := a != nil
+	nb := b != nil
+	nc := c != nil
+	if na || nb || nc { // +1 for `if`, +1 for `||` chain
+		return false
+	}
+
+	return true
+} // total complexity = 2
 
 func GetWords(number int) string { // want "cognitive complexity 1 of func GetWords is high \\(> 0\\)"
 	switch number { // +1
