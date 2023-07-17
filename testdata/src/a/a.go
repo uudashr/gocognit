@@ -99,7 +99,7 @@ func ComplexLogicalSeq5(a, b, c, d, e, f bool) bool { // want "cognitive complex
 	return a && b && (c && d || e || f) // +1 for `&&` sequence, +2 for `&&` `||` sequence in parentheses
 } // total complexity = 3
 
-func ExprFunc(a, b, c any) bool { // want "cognitive complexity 2 of func ExprFunc is high \\(> 0\\)"
+func ExprFunc(a, b, c interface{}) bool { // want "cognitive complexity 2 of func ExprFunc is high \\(> 0\\)"
 	if a != nil || b != nil || c != nil { // +1 for `if`, +1 for `||` chain
 		return false
 	}
@@ -107,7 +107,7 @@ func ExprFunc(a, b, c any) bool { // want "cognitive complexity 2 of func ExprFu
 	return true
 } // total complexity = 2
 
-func VarFunc(a, b, c any) bool { // want "cognitive complexity 2 of func VarFunc is high \\(> 0\\)"
+func VarFunc(a, b, c interface{}) bool { // want "cognitive complexity 2 of func VarFunc is high \\(> 0\\)"
 	na := a != nil
 	nb := b != nil
 	nc := c != nil

@@ -6,8 +6,6 @@ import (
 	"io"
 )
 
-type any interface{}
-
 func HelloWorld() string {
 	_ = len("hello")
 	return "Hello, World!"
@@ -93,7 +91,7 @@ func ComplexLogicalSeq5(a, b, c, d, e, f bool) bool {
 	return a && b && (c && d || e || f) // +1 for `&&` sequence, +2 for `&&` `||` sequence in parentheses
 } // total complexity = 3
 
-func ExprFunc(a, b, c any) bool {
+func ExprFunc(a, b, c interface{}) bool {
 	if a != nil || b != nil || c != nil { // +1 for `if`, +1 for `||` chain
 		return false
 	}
@@ -101,7 +99,7 @@ func ExprFunc(a, b, c any) bool {
 	return true
 } // total complexity = 2
 
-func VarFunc(a, b, c any) bool {
+func VarFunc(a, b, c interface{}) bool {
 	na := a != nil
 	nb := b != nil
 	nc := c != nil
