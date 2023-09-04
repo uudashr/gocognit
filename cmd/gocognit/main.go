@@ -133,19 +133,18 @@ func analyzePath(path string) ([]gocognit.Stat, error) {
 	return analyzeFile(path, nil)
 }
 
-func analyze(paths []string) ([]gocognit.Stat, error) {
-	var (
-		stats []gocognit.Stat
-		err   error
-	)
+func analyze(paths []string) (stats []gocognit.Stat, err error) {
+	var out []gocognit.Stat
 	for _, path := range paths {
-		stats, err = analyzePath(path)
+		stats, err := analyzePath(path)
 		if err != nil {
 			return nil, err
 		}
+
+		out = append(out, stats...)
 	}
 
-	return stats, nil
+	return out, nil
 }
 
 func isDir(filename string) bool {
