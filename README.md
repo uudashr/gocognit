@@ -166,13 +166,14 @@ Usage:
 
 Flags:
 
-    -over N     show functions with complexity > N only and
-                return exit code 1 if the set is non-empty
-	-top N      show the top N most complex functions only
-	-avg        show the average complexity over all functions,
-                not depending on whether -over or -top are set
-	-json       encode the output as JSON
-	-f format   string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+    -over N       show functions with complexity > N only and
+                  return exit code 1 if the set is non-empty
+	-top N        show the top N most complex functions only
+	-avg          show the average complexity over all functions,
+                  not depending on whether -over or -top are set
+	-json         encode the output as JSON
+	-f format     string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+	-ignore expr  ignore files matching the given regexp
 
 The (default) output fields for each line are:
 
@@ -198,6 +199,7 @@ $ gocognit main.go
 $ gocognit -top 10 src/
 $ gocognit -over 25 docker
 $ gocognit -avg .
+$ gocognit -ignore "_test|testdata" .
 ```
 
 The output fields for each line are:
