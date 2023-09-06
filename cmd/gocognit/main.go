@@ -3,16 +3,17 @@
 //
 // Usage:
 //
-//	gocognitive [<flag> ...] <Go file or directory> ...
+//	gocognit [<flag> ...] <Go file or directory> ...
 //
 // Flags:
 //
-//	-over N   show functions with complexity > N only and
-//	          return exit code 1 if the output is non-empty
-//	-top N    show the top N most complex functions only
-//	-avg      show the average complexity
+//	-over N    show functions with complexity > N only and return exit code 1 if the output is non-empty
+//	-top N     show the top N most complex functions only
+//	-avg       show the average complexity over all functions, not depending on whether -over or -top are set
+//	-json      encode the output as JSON
+//	-f format  string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
 //
-// The output fields for each line are:
+// The (default) output fields for each line are:
 // <complexity> <package> <function> <file:row:column>
 package main
 
@@ -44,7 +45,7 @@ Flags:
                    not depending on whether -over or -top are set
         -json      encode the output as JSON
         -f format  string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
-The output fields for each line are:
+The (default) output fields for each line are:
 {{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}} or equal to
 <complexity> <package> <function> <file:row:column>
 
