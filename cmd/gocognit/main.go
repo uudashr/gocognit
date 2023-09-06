@@ -170,7 +170,7 @@ func isDir(filename string) bool {
 
 func analyzeFile(fname string, stats []gocognit.Stat) ([]gocognit.Stat, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, fname, nil, 0)
+	f, err := parser.ParseFile(fset, fname, nil, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}

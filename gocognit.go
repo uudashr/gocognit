@@ -26,6 +26,11 @@ func (s Stat) String() string {
 func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 	for _, decl := range f.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
+			d := parseDirective(fn.Doc)
+			if d.Ignore {
+				continue
+			}
+
 			stats = append(stats, Stat{
 				PkgName:    f.Name.Name,
 				FuncName:   funcName(fn),
@@ -35,6 +40,24 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 		}
 	}
 	return stats
+}
+
+type directive struct {
+	Ignore bool
+}
+
+func parseDirective(doc *ast.CommentGroup) directive {
+	if doc == nil {
+		return directive{}
+	}
+
+	for _, c := range doc.List {
+		if c.Text == "//gocognit:ignore" {
+			return directive{Ignore: true}
+		}
+	}
+
+	return directive{}
 }
 
 // funcName returns the name representation of a function or method:
