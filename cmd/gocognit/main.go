@@ -27,6 +27,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
@@ -41,13 +42,14 @@ Usage:
 
 Flags:
 
-    -over N     show functions with complexity > N only and
-                return exit code 1 if the set is non-empty
-	-top N      show the top N most complex functions only
-	-avg        show the average complexity over all functions,
-                not depending on whether -over or -top are set
-	-json       encode the output as JSON
-	-f format   string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+    -over N       show functions with complexity > N only and
+                  return exit code 1 if the set is non-empty
+	-top N        show the top N most complex functions only
+	-avg          show the average complexity over all functions,
+                  not depending on whether -over or -top are set
+	-json         encode the output as JSON
+	-f format     string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+	-ignore expr  ignore files matching the given regexp
 
 The (default) output fields for each line are:
 
@@ -84,12 +86,14 @@ func main() {
 		avg        bool
 		format     string
 		jsonEncode bool
+		ignoreExpr string
 	)
 	flag.IntVar(&over, "over", defaultOverFlagVal, "show functions with complexity > N only")
 	flag.IntVar(&top, "top", defaultTopFlagVal, "show the top N most complex functions only")
 	flag.BoolVar(&avg, "avg", false, "show the average complexity")
 	flag.StringVar(&format, "f", defaultFormat, "the format to use")
 	flag.BoolVar(&jsonEncode, "json", false, "encode the output as JSON")
+	flag.StringVar(&ignoreExpr, "ignore", "", "ignore files matching the given regexp")
 
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
@@ -112,7 +116,12 @@ func main() {
 
 	sort.Sort(byComplexity(stats))
 
-	filteredStats := filterStats(stats, top, over)
+	ignoreRegexp, err := prepareRegexp(ignoreExpr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	filteredStats := filterStats(stats, ignoreRegexp, top, over)
 	var written int
 	if jsonEncode {
 		written, err = writeJSONStats(os.Stdout, filteredStats)
@@ -219,9 +228,18 @@ func writeJSONStats(w io.Writer, stats []gocognit.Stat) (int, error) {
 	return len(stats), nil
 }
 
-func filterStats(sortedStats []gocognit.Stat, top, over int) []gocognit.Stat {
+func prepareRegexp(expr string) (*regexp.Regexp, error) {
+	if expr == "" {
+		return nil, nil
+	}
+
+	return regexp.Compile(expr)
+}
+
+func filterStats(sortedStats []gocognit.Stat, ignoreRegexp *regexp.Regexp, top, over int) []gocognit.Stat {
 	var filtered []gocognit.Stat
-	for i, stat := range sortedStats {
+	i := 0
+	for _, stat := range sortedStats {
 		if i == top {
 			break
 		}
@@ -230,7 +248,12 @@ func filterStats(sortedStats []gocognit.Stat, top, over int) []gocognit.Stat {
 			break
 		}
 
+		if ignoreRegexp != nil && ignoreRegexp.MatchString(stat.Pos.Filename) {
+			continue
+		}
+
 		filtered = append(filtered, stat)
+		i++
 	}
 
 	return filtered
