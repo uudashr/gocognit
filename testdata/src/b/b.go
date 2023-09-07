@@ -152,6 +152,14 @@ OUT:
 	return total
 } // Cognitive complexity = 7
 
+func Fibonacci(n int) int {
+	if n <= 1 { // +1
+		return n
+	}
+
+	return Fibonacci(n-1) + Fibonacci(n-2) // +1 and +1
+} // Cognitive complexity = 3
+
 func FactRec(n int) int {
 	if n <= 1 { // +1
 		return 1
@@ -159,6 +167,14 @@ func FactRec(n int) int {
 		return n * FactRec(n-1) // +1
 	}
 } // total complexity = 3
+
+func FactRec_Simplified(n int) int {
+	if n <= 1 { // +1
+		return 1
+	}
+
+	return n * FactRec_Simplified(n-1) // +1
+} // total complexity = 2
 
 func FactLoop(n int) int {
 	total := 1
