@@ -1,6 +1,6 @@
 [![GoDoc](https://godoc.org/github.com/uudashr/gocognit?status.svg)](https://godoc.org/github.com/uudashr/gocognit)
 # Gocognit
-Gocognit calculates cognitive complexities of functions in Go source code. A measurement of how hard does the code is intuitively to understand.
+Gocognit calculates cognitive complexities of functions (and methods) in Go source code. A measurement of how hard does the code is intuitively to understand.
 
 ## Understanding the complexity
 
@@ -205,6 +205,15 @@ $ gocognit -ignore "_test|testdata" .
 The output fields for each line are:
 ```
 <complexity> <package> <function> <file:row:column>
+```
+
+## Ignore individual functions
+Ignore individual functions by specifying `gocognit:ignore` directive.
+```go
+//gocognit:ignore
+func IgnoreMe() {
+    // ...
+}
 ```
 
 ## Related project
