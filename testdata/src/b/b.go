@@ -230,3 +230,12 @@ func MyFunc2(a bool) {
 
 	x()
 } // total complexity = 2
+
+//gocognit:ignore
+func IgnoreMe(name string) bool {
+	if name == "me" { // +1
+		return true
+	}
+
+	return false
+} // total complexity = 1

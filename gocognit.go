@@ -379,13 +379,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		fnDecl := n.(*ast.FuncDecl)
+		funcDecl := n.(*ast.FuncDecl)
 
-		fnName := funcName(fnDecl)
-		fnComplexity := Complexity(fnDecl)
+		d := parseDirective(funcDecl.Doc)
+		if d.Ignore {
+			return
+		}
+
+		fnName := funcName(funcDecl)
+
+		fnComplexity := Complexity(funcDecl)
 
 		if fnComplexity > over {
-			pass.Reportf(fnDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)
+			pass.Reportf(funcDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)
 		}
 	})
 

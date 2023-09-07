@@ -238,3 +238,12 @@ func MyFunc2(a bool) { // want "cognitive complexity 2 of func MyFunc2 is high \
 
 	x()
 } // total complexity = 2
+
+//gocognit:ignore
+func IgnoreMe(name string) bool {
+	if name == "me" { // +1
+		return true
+	}
+
+	return false
+} // total complexity = 1
