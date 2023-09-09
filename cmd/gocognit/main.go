@@ -14,7 +14,23 @@
 //	-f format  string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
 //
 // The (default) output fields for each line are:
-// <complexity> <package> <function> <file:row:column>
+//
+//	<complexity> <package> <function> <file:row:column>
+//
+// The (default) output fields for each line are:
+//
+//	{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}
+//
+// or equal to <complexity> <package> <function> <file:row:column>
+//
+// The struct being passed to the template is:
+//
+//	type Stat struct {
+//	  PkgName    string
+//	  FuncName   string
+//	  Complexity int
+//	  Pos        token.Position
+//	}
 package main
 
 import (
@@ -36,35 +52,40 @@ import (
 )
 
 const usageDoc = `Calculate cognitive complexities of Go functions.
+
 Usage:
 
-    gocognit [flags] <Go file or directory> ...
+  gocognit [<flag> ...] <Go file or directory> ...
 
 Flags:
 
-    -over N       show functions with complexity > N only and
-                  return exit code 1 if the set is non-empty
-	-top N        show the top N most complex functions only
-	-avg          show the average complexity over all functions,
-                  not depending on whether -over or -top are set
-	-json         encode the output as JSON
-	-f format     string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
-	-ignore expr  ignore files matching the given regexp
+  -over N    show functions with complexity > N only
+             and return exit code 1 if the output is non-empty
+  -top N     show the top N most complex functions only
+  -avg       show the average complexity over all functions,
+             not depending on whether -over or -top are set
+  -json      encode the output as JSON
+  -f format  string the format to use 
+             (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
 
 The (default) output fields for each line are:
 
-    {{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}
-	
+  <complexity> <package> <function> <file:row:column>
+
+The (default) output fields for each line are:
+
+  {{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}
+
 or equal to <complexity> <package> <function> <file:row:column>
 
 The struct being passed to the template is:
 
-    type Stat struct {
-	    PkgName    string
-	    FuncName   string
-	    Complexity int
-	    Pos        token.Position
-    }
+  type Stat struct {
+    PkgName    string
+    FuncName   string
+    Complexity int
+    Pos        token.Position
+  }
 `
 
 const (
