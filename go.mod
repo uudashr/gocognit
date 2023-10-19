@@ -6,3 +6,5 @@ require (
 	golang.org/x/sys v0.0.0-20220702020025-31831981b65f // indirect
 	golang.org/x/tools v0.1.11
 )
+
+retract v1.1.1 // Accidentally published.
