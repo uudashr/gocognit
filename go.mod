@@ -1,10 +1,9 @@
 module github.com/uudashr/gocognit
 
-go 1.16
+go 1.18
 
-require (
-	golang.org/x/sys v0.0.0-20220702020025-31831981b65f // indirect
-	golang.org/x/tools v0.1.11
-)
+require golang.org/x/tools v0.18.0
+
+require golang.org/x/mod v0.15.0 // indirect
 
 retract v1.1.1 // Accidentally published.
