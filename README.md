@@ -147,14 +147,14 @@ The following structures receive a nesting increment commensurate with their nes
 
 ## Installation
 
-```
-$ go install github.com/uudashr/gocognit/cmd/gocognit@latest
+```shell
+go install github.com/uudashr/gocognit/cmd/gocognit@latest
 ```
 
 or 
 
-```
-$ go get github.com/uudashr/gocognit/cmd/gocognit
+```shell
+go get github.com/uudashr/gocognit/cmd/gocognit
 ```
 
 ## Usage
