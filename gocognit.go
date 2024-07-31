@@ -39,6 +39,7 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 			})
 		}
 	}
+
 	return stats
 }
 
@@ -66,9 +67,11 @@ func funcName(fn *ast.FuncDecl) string {
 	if fn.Recv != nil {
 		if fn.Recv.NumFields() > 0 {
 			typ := fn.Recv.List[0].Type
+
 			return fmt.Sprintf("(%s).%s", recvString(typ), fn.Name)
 		}
 	}
+
 	return fn.Name.Name
 }
 
@@ -79,6 +82,7 @@ func Complexity(fn *ast.FuncDecl) int {
 	}
 
 	ast.Walk(&v, fn)
+
 	return v.complexity
 }
 
@@ -162,6 +166,7 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 	case *ast.CallExpr:
 		return v.visitCallExpr(n)
 	}
+
 	return v
 }
 
@@ -209,6 +214,7 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
@@ -226,6 +232,7 @@ func (v *complexityVisitor) visitTypeSwitchStmt(n *ast.TypeSwitchStmt) ast.Visit
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
@@ -235,6 +242,7 @@ func (v *complexityVisitor) visitSelectStmt(n *ast.SelectStmt) ast.Visitor {
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
@@ -256,6 +264,7 @@ func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
@@ -275,6 +284,7 @@ func (v *complexityVisitor) visitRangeStmt(n *ast.RangeStmt) ast.Visitor {
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
@@ -302,10 +312,12 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 		for _, op := range ops {
 			if lastOp != op {
 				v.incComplexity()
+
 				lastOp = op
 			}
 		}
 	}
+
 	return v
 }
 
@@ -317,11 +329,13 @@ func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 			v.incComplexity()
 		}
 	}
+
 	return v
 }
 
 func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 	v.markCalculated(exp)
+
 	if exp, ok := exp.(*ast.BinaryExpr); ok {
 		return mergeBinaryOps(v.collectBinaryOps(exp.X), exp.Op, v.collectBinaryOps(exp.Y))
 	}
@@ -339,9 +353,11 @@ func (v *complexityVisitor) incIfComplexity(n *ast.IfStmt) {
 func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.Token {
 	var out []token.Token
 	out = append(out, x...)
+
 	if isBinaryLogicalOp(op) {
 		out = append(out, op)
 	}
+
 	out = append(out, y...)
 	return out
 }

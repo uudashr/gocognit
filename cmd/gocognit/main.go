@@ -111,6 +111,7 @@ func main() {
 		jsonEncode   bool
 		ignoreExpr   string
 	)
+
 	flag.IntVar(&over, "over", defaultOverFlagVal, "show functions with complexity > N only")
 	flag.IntVar(&top, "top", defaultTopFlagVal, "show the top N most complex functions only")
 	flag.BoolVar(&avg, "avg", false, "show the average complexity")
@@ -121,9 +122,11 @@ func main() {
 
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
+
 	flag.Usage = usage
 	flag.Parse()
 	args := flag.Args()
+
 	if len(args) == 0 {
 		usage()
 	}
@@ -146,12 +149,14 @@ func main() {
 	}
 
 	filteredStats := filterStats(stats, ignoreRegexp, top, over)
+
 	var written int
 	if jsonEncode {
 		written, err = writeJSONStats(os.Stdout, filteredStats)
 	} else {
 		written, err = writeTextStats(os.Stdout, filteredStats, tmpl)
 	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -175,6 +180,7 @@ func analyzePath(path string, includeTests bool) ([]gocognit.Stat, error) {
 
 func analyze(paths []string, includeTests bool) (stats []gocognit.Stat, err error) {
 	var out []gocognit.Stat
+
 	for _, path := range paths {
 		stats, err := analyzePath(path, includeTests)
 		if err != nil {
@@ -189,11 +195,13 @@ func analyze(paths []string, includeTests bool) (stats []gocognit.Stat, err erro
 
 func isDir(filename string) bool {
 	fi, err := os.Stat(filename)
+
 	return err == nil && fi.IsDir()
 }
 
 func analyzeFile(fname string, stats []gocognit.Stat) ([]gocognit.Stat, error) {
 	fset := token.NewFileSet()
+
 	f, err := parser.ParseFile(fset, fname, nil, parser.ParseComments)
 	if err != nil {
 		return nil, err
@@ -240,6 +248,7 @@ func writeTextStats(w io.Writer, stats []gocognit.Stat, tmpl *template.Template)
 		if err := tmpl.Execute(w, stat); err != nil {
 			return i, err
 		}
+
 		fmt.Fprintln(w)
 	}
 
@@ -266,6 +275,7 @@ func prepareRegexp(expr string) (*regexp.Regexp, error) {
 
 func filterStats(sortedStats []gocognit.Stat, ignoreRegexp *regexp.Regexp, top, over int) []gocognit.Stat {
 	var filtered []gocognit.Stat
+
 	i := 0
 	for _, stat := range sortedStats {
 		if i == top {
@@ -296,6 +306,7 @@ func average(stats []gocognit.Stat) float64 {
 	for _, s := range stats {
 		total += s.Complexity
 	}
+
 	return float64(total) / float64(len(stats))
 }
 
