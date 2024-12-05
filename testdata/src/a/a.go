@@ -23,7 +23,7 @@ func IfElseNested(n int) string { // want "cognitive complexity 3 of func IfElse
 	if n == 100 { // +1
 		return "a hundred"
 	} else { // + 1
-		if n == 200 { // + 1
+		if n == 200 { // +1
 			return "two hundred"
 		}
 	}
@@ -31,17 +31,39 @@ func IfElseNested(n int) string { // want "cognitive complexity 3 of func IfElse
 	return "others"
 } // total complexity = 3
 
-func IfElseIfNested(n int) string { // want "cognitive complexity 3 of func IfElseIfNested is high \\(> 0\\)"
+func IfElseIfNested(n int) string { // want "cognitive complexity 4 of func IfElseIfNested is high \\(> 0\\)"
 	if n == 100 { // +1
 		return "a hundred"
-	} else if n < 300 { // + 1
-		if n == 200 { // + 1
+	} else if n < 300 { // +1
+		if n == 200 { // +2 (nesting=1)
 			return "two hundred"
 		}
 	}
 
 	return "others"
-} // total complexity = 3
+} // total complexity = 4
+
+func NestingIfElseIfNested(n int) string { // want "cognitive complexity 7 of func NestingIfElseIfNested is high \\(> 0\\)"
+	if n > 0 { // +1
+		if n == 100 { // +2 (nesting=1)
+			return "a hundred"
+		} else if n < 300 { // +1
+			if n == 200 { // +3 (nesting=2)
+				return "two hundred"
+			}
+		}
+	}
+
+	return "others"
+} // total complexity = 7
+
+func SimpleLogicalSeq0(a, b bool) string { // want "cognitive complexity 2 of func SimpleLogicalSeq0 is high \\(> 0\\)"
+	if a && b { // +1 "if", +1 "&&"
+		return "ok"
+	}
+
+	return "not ok"
+} // total complexity = 2
 
 func SimpleLogicalSeq1(a, b, c, d bool) string { // want "cognitive complexity 2 of func SimpleLogicalSeq1 is high \\(> 0\\)"
 	if a && b && c && d { // +1 for `if`, +1 for `&&` sequence
@@ -247,3 +269,18 @@ func IgnoreMe(name string) bool {
 
 	return false
 } // total complexity = 1
+
+func SwitchInNest(w io.Writer, i interface{}) error { // want "cognitive complexity 3 of func SwitchInNest is high \\(> 0\\)"
+	if i != nil { // +1
+		switch v := i.(type) { // +2 (nesting = 1)
+		case int:
+			fmt.Fprint(w, "int ", v)
+		case string:
+			fmt.Fprint(w, "string", v)
+		default:
+			return errors.New("unrecognized type")
+		}
+	}
+
+	return errors.New("nil interface")
+} // total complexity = 3

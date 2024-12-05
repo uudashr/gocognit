@@ -18,3 +18,9 @@ func TestAnalyzerOver3(t *testing.T) {
 	gocognit.Analyzer.Flags.Set("over", "3")
 	analysistest.Run(t, testdata, gocognit.Analyzer, "b")
 }
+
+func TestAnalyzerComplex(t *testing.T) {
+	testdata := analysistest.TestData()
+	gocognit.Analyzer.Flags.Set("over", "0")
+	analysistest.Run(t, testdata, gocognit.Analyzer, "d")
+}
