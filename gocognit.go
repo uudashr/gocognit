@@ -19,6 +19,21 @@ type Stat struct {
 	Pos        token.Position
 }
 
+type Trace struct {
+	Inc     int
+	Nesting int `json:",omitempty"`
+	Text    string
+	Pos     token.Position
+}
+
+func (t Trace) String() string {
+	if t.Nesting == 0 {
+		return fmt.Sprintf("+%d", t.Inc)
+	}
+
+	return fmt.Sprintf("+%d (nesting=%d)", t.Inc, t.Nesting)
+}
+
 func (s Stat) String() string {
 	return fmt.Sprintf("%d %s %s %s", s.Complexity, s.PkgName, s.FuncName, s.Pos)
 }
@@ -32,19 +47,33 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat, includeTrac
 				continue
 			}
 
-			res := Scan(fn, includeTrace)
+			res := ScanComplexity(fn, includeTrace)
 
 			stats = append(stats, Stat{
 				PkgName:    f.Name.Name,
 				FuncName:   funcName(fn),
 				Complexity: res.Complexity,
-				Traces:     res.Traces,
+				Traces:     traces(fset, res.Traces),
 				Pos:        fset.Position(fn.Pos()),
 			})
 		}
 	}
 
 	return stats
+}
+
+func traces(fset *token.FileSet, traces []trace) []Trace {
+	tags := make([]Trace, 0, len(traces))
+	for _, t := range traces {
+		tags = append(tags, Trace{
+			Inc:     t.Inc,
+			Nesting: t.Nesting,
+			Text:    t.Text,
+			Pos:     fset.Position(t.Pos),
+		})
+	}
+
+	return tags
 }
 
 type directive struct {
@@ -81,13 +110,13 @@ func funcName(fn *ast.FuncDecl) string {
 
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fn *ast.FuncDecl) int {
-	res := Scan(fn, false)
+	res := ScanComplexity(fn, false)
 
 	return res.Complexity
 }
 
-// Scan scans the function declaration.
-func Scan(fn *ast.FuncDecl, trace bool) Result {
+// ScanComplexity scans the function declaration.
+func ScanComplexity(fn *ast.FuncDecl, trace bool) ScanResult {
 	v := complexityVisitor{
 		name:  fn.Name,
 		trace: trace,
@@ -95,30 +124,22 @@ func Scan(fn *ast.FuncDecl, trace bool) Result {
 
 	ast.Walk(&v, fn)
 
-	return Result{
+	return ScanResult{
 		Traces:     v.traces,
 		Complexity: v.complexity,
 	}
 }
 
-type Result struct {
-	Traces     []Trace
+type ScanResult struct {
+	Traces     []trace
 	Complexity int
 }
 
-type Trace struct {
+type trace struct {
 	Inc     int
-	Nesting int `json:",omitempty"`
+	Nesting int
 	Text    string
 	Pos     token.Pos
-}
-
-func (t Trace) String() string {
-	if t.Nesting == 0 {
-		return fmt.Sprintf("+%d", t.Inc)
-	}
-
-	return fmt.Sprintf("+%d (nesting=%d)", t.Inc, t.Nesting)
 }
 
 type complexityVisitor struct {
@@ -131,7 +152,7 @@ type complexityVisitor struct {
 	fset *token.FileSet
 
 	trace  bool
-	traces []Trace
+	traces []trace
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -149,7 +170,7 @@ func (v *complexityVisitor) incComplexity(text string, pos token.Pos) {
 		return
 	}
 
-	v.traces = append(v.traces, Trace{
+	v.traces = append(v.traces, trace{
 		Inc:  1,
 		Text: text,
 		Pos:  pos,
@@ -163,7 +184,7 @@ func (v *complexityVisitor) nestIncComplexity(text string, pos token.Pos) {
 		return
 	}
 
-	v.traces = append(v.traces, Trace{
+	v.traces = append(v.traces, trace{
 		Inc:     v.nesting + 1,
 		Nesting: v.nesting,
 		Text:    text,
