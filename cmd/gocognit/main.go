@@ -110,6 +110,7 @@ func main() {
 		format       string
 		jsonEncode   bool
 		ignoreExpr   string
+		trace        bool
 	)
 
 	flag.IntVar(&over, "over", defaultOverFlagVal, "show functions with complexity > N only")
@@ -119,6 +120,7 @@ func main() {
 	flag.StringVar(&format, "f", defaultFormat, "the format to use")
 	flag.BoolVar(&jsonEncode, "json", false, "encode the output as JSON")
 	flag.StringVar(&ignoreExpr, "ignore", "", "ignore files matching the given regexp")
+	flag.BoolVar(&trace, "trace", false, "include trace information of the complexity")
 
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
@@ -136,7 +138,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stats, err := analyze(args, includeTests)
+	traceEnabled := trace && jsonEncode
+	stats, err := analyze(args, includeTests, traceEnabled)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -170,19 +173,19 @@ func main() {
 	}
 }
 
-func analyzePath(path string, includeTests bool) ([]gocognit.Stat, error) {
+func analyzePath(path string, includeTests bool, trace bool) ([]gocognit.Stat, error) {
 	if isDir(path) {
-		return analyzeDir(path, includeTests, nil)
+		return analyzeDir(path, includeTests, nil, trace)
 	}
 
-	return analyzeFile(path, nil)
+	return analyzeFile(path, nil, trace)
 }
 
-func analyze(paths []string, includeTests bool) (stats []gocognit.Stat, err error) {
+func analyze(paths []string, includeTests bool, trace bool) (stats []gocognit.Stat, err error) {
 	var out []gocognit.Stat
 
 	for _, path := range paths {
-		stats, err := analyzePath(path, includeTests)
+		stats, err := analyzePath(path, includeTests, trace)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +202,7 @@ func isDir(filename string) bool {
 	return err == nil && fi.IsDir()
 }
 
-func analyzeFile(fname string, stats []gocognit.Stat) ([]gocognit.Stat, error) {
+func analyzeFile(fname string, stats []gocognit.Stat, trace bool) ([]gocognit.Stat, error) {
 	fset := token.NewFileSet()
 
 	f, err := parser.ParseFile(fset, fname, nil, parser.ParseComments)
@@ -207,10 +210,10 @@ func analyzeFile(fname string, stats []gocognit.Stat) ([]gocognit.Stat, error) {
 		return nil, err
 	}
 
-	return gocognit.ComplexityStats(f, fset, stats), nil
+	return gocognit.ComplexityStats(f, fset, stats, trace), nil
 }
 
-func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat) ([]gocognit.Stat, error) {
+func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, trace bool) ([]gocognit.Stat, error) {
 	err := filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -228,7 +231,7 @@ func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat) ([]goc
 			return nil
 		}
 
-		stats, err = analyzeFile(path, stats)
+		stats, err = analyzeFile(path, stats, trace)
 		if err != nil {
 			return err
 		}
