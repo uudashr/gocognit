@@ -16,8 +16,8 @@ type Stat struct {
 	PkgName     string
 	FuncName    string
 	Complexity  int
-	Diagnostics []Diagnostic `json:",omitempty"`
 	Pos         token.Position
+	Diagnostics []Diagnostic `json:",omitempty"`
 }
 
 // Diagnostic contrains information how the complexity increase.
@@ -193,8 +193,6 @@ type complexityVisitor struct {
 	nesting         int
 	elseNodes       map[ast.Node]bool
 	calculatedExprs map[ast.Expr]bool
-
-	fset *token.FileSet
 
 	diagnosticEnabled bool
 	diagnostics       []diagnostic

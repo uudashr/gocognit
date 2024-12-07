@@ -86,8 +86,8 @@ The struct being passed to the template is:
     PkgName     string
     FuncName    string
     Complexity  int
-    Diagnostics []Diagnostics
     Pos         token.Position
+    Diagnostics []Diagnostics
   }
 
   type Diagnostic struct {
