@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -12,10 +13,58 @@ import (
 
 // Stat is statistic of the complexity.
 type Stat struct {
-	PkgName    string
-	FuncName   string
-	Complexity int
-	Pos        token.Position
+	PkgName     string
+	FuncName    string
+	Complexity  int
+	Pos         token.Position
+	Diagnostics []Diagnostic `json:",omitempty"`
+}
+
+// Diagnostic contains information how the complexity increase.
+type Diagnostic struct {
+	Inc     int
+	Nesting int `json:",omitempty"`
+	Text    string
+	Pos     DiagnosticPosition
+}
+
+// DiagnosticPosition is the position of the diagnostic.
+type DiagnosticPosition struct {
+	Offset int // offset, starting at 0
+	Line   int // line number, starting at 1
+	Column int // column number, starting at 1 (byte count)
+}
+
+func (pos DiagnosticPosition) isValid() bool {
+	return pos.Line > 0
+}
+
+func (pos DiagnosticPosition) String() string {
+	var s string
+	if pos.isValid() {
+		if s != "" {
+			s += ":"
+		}
+
+		s += strconv.Itoa(pos.Line)
+		if pos.Column != 0 {
+			s += fmt.Sprintf(":%d", pos.Column)
+		}
+	}
+
+	if s == "" {
+		s = "-"
+	}
+
+	return s
+}
+
+func (d Diagnostic) String() string {
+	if d.Nesting == 0 {
+		return fmt.Sprintf("+%d", d.Inc)
+	}
+
+	return fmt.Sprintf("+%d (nesting=%d)", d.Inc, d.Nesting)
 }
 
 func (s Stat) String() string {
@@ -24,6 +73,11 @@ func (s Stat) String() string {
 
 // ComplexityStats builds the complexity statistics.
 func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
+	return ComplexityStatsWithDiagnostic(f, fset, stats, false)
+}
+
+// ComplexityStatsWithDiagnostic builds the complexity statistics with diagnostic.
+func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Stat, enableDiagnostics bool) []Stat {
 	for _, decl := range f.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			d := parseDirective(fn.Doc)
@@ -31,16 +85,41 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 				continue
 			}
 
+			res := ScanComplexity(fn, enableDiagnostics)
+
 			stats = append(stats, Stat{
-				PkgName:    f.Name.Name,
-				FuncName:   funcName(fn),
-				Complexity: Complexity(fn),
-				Pos:        fset.Position(fn.Pos()),
+				PkgName:     f.Name.Name,
+				FuncName:    funcName(fn),
+				Complexity:  res.Complexity,
+				Diagnostics: generateDiagnostics(fset, res.Diagnostics),
+				Pos:         fset.Position(fn.Pos()),
 			})
 		}
 	}
 
 	return stats
+}
+
+func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
+	out := make([]Diagnostic, 0, len(diags))
+
+	for _, diag := range diags {
+		pos := fset.Position(diag.Pos)
+		diagPos := DiagnosticPosition{
+			Offset: pos.Offset,
+			Line:   pos.Line,
+			Column: pos.Column,
+		}
+
+		out = append(out, Diagnostic{
+			Inc:     diag.Inc,
+			Nesting: diag.Nesting,
+			Text:    diag.Text,
+			Pos:     diagPos,
+		})
+	}
+
+	return out
 }
 
 type directive struct {
@@ -77,13 +156,36 @@ func funcName(fn *ast.FuncDecl) string {
 
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fn *ast.FuncDecl) int {
+	res := ScanComplexity(fn, false)
+
+	return res.Complexity
+}
+
+// ScanComplexity scans the function declaration.
+func ScanComplexity(fn *ast.FuncDecl, includeDiagnostics bool) ScanResult {
 	v := complexityVisitor{
-		name: fn.Name,
+		name:               fn.Name,
+		diagnosticsEnabled: includeDiagnostics,
 	}
 
 	ast.Walk(&v, fn)
 
-	return v.complexity
+	return ScanResult{
+		Diagnostics: v.diagnostics,
+		Complexity:  v.complexity,
+	}
+}
+
+type ScanResult struct {
+	Diagnostics []diagnostic
+	Complexity  int
+}
+
+type diagnostic struct {
+	Inc     int
+	Nesting int
+	Text    string
+	Pos     token.Pos
 }
 
 type complexityVisitor struct {
@@ -92,6 +194,9 @@ type complexityVisitor struct {
 	nesting         int
 	elseNodes       map[ast.Node]bool
 	calculatedExprs map[ast.Expr]bool
+
+	diagnosticsEnabled bool
+	diagnostics        []diagnostic
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -102,12 +207,33 @@ func (v *complexityVisitor) decNesting() {
 	v.nesting--
 }
 
-func (v *complexityVisitor) incComplexity() {
+func (v *complexityVisitor) incComplexity(text string, pos token.Pos) {
 	v.complexity++
+
+	if !v.diagnosticsEnabled {
+		return
+	}
+
+	v.diagnostics = append(v.diagnostics, diagnostic{
+		Inc:  1,
+		Text: text,
+		Pos:  pos,
+	})
 }
 
-func (v *complexityVisitor) nestIncComplexity() {
+func (v *complexityVisitor) nestIncComplexity(text string, pos token.Pos) {
 	v.complexity += (v.nesting + 1)
+
+	if !v.diagnosticsEnabled {
+		return
+	}
+
+	v.diagnostics = append(v.diagnostics, diagnostic{
+		Inc:     v.nesting + 1,
+		Nesting: v.nesting,
+		Text:    text,
+		Pos:     pos,
+	})
 }
 
 func (v *complexityVisitor) markAsElseNode(n ast.Node) {
@@ -171,7 +297,7 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
-	v.incIfComplexity(n)
+	v.incIfComplexity(n, "if", n.Pos())
 
 	if n := n.Init; n != nil {
 		ast.Walk(v, n)
@@ -184,7 +310,7 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	v.decNesting()
 
 	if _, ok := n.Else.(*ast.BlockStmt); ok {
-		v.incComplexity()
+		v.incComplexity("else", n.Else.Pos())
 
 		ast.Walk(v, n.Else)
 	} else if _, ok := n.Else.(*ast.IfStmt); ok {
@@ -196,7 +322,7 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
-	v.nestIncComplexity()
+	v.nestIncComplexity("switch", n.Pos())
 
 	if n := n.Init; n != nil {
 		ast.Walk(v, n)
@@ -214,7 +340,7 @@ func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitTypeSwitchStmt(n *ast.TypeSwitchStmt) ast.Visitor {
-	v.nestIncComplexity()
+	v.nestIncComplexity("switch", n.Pos())
 
 	if n := n.Init; n != nil {
 		ast.Walk(v, n)
@@ -232,7 +358,7 @@ func (v *complexityVisitor) visitTypeSwitchStmt(n *ast.TypeSwitchStmt) ast.Visit
 }
 
 func (v *complexityVisitor) visitSelectStmt(n *ast.SelectStmt) ast.Visitor {
-	v.nestIncComplexity()
+	v.nestIncComplexity("select", n.Pos())
 
 	v.incNesting()
 	ast.Walk(v, n.Body)
@@ -242,7 +368,7 @@ func (v *complexityVisitor) visitSelectStmt(n *ast.SelectStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
-	v.nestIncComplexity()
+	v.nestIncComplexity("for", n.Pos())
 
 	if n := n.Init; n != nil {
 		ast.Walk(v, n)
@@ -264,7 +390,7 @@ func (v *complexityVisitor) visitForStmt(n *ast.ForStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitRangeStmt(n *ast.RangeStmt) ast.Visitor {
-	v.nestIncComplexity()
+	v.nestIncComplexity("for", n.Pos())
 
 	if n := n.Key; n != nil {
 		ast.Walk(v, n)
@@ -289,13 +415,15 @@ func (v *complexityVisitor) visitFuncLit(n *ast.FuncLit) ast.Visitor {
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
 func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 	if n.Label != nil {
-		v.incComplexity()
+		v.incComplexity(n.Tok.String(), n.Pos())
 	}
+
 	return v
 }
 
@@ -306,8 +434,7 @@ func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
 		var lastOp token.Token
 		for _, op := range ops {
 			if lastOp != op {
-				v.incComplexity()
-
+				v.incComplexity(op.String(), n.OpPos)
 				lastOp = op
 			}
 		}
@@ -321,7 +448,7 @@ func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 		obj, name := callIdent.Obj, callIdent.Name
 		if obj == v.name.Obj && name == v.name.Name {
 			// called by same function directly (direct recursion)
-			v.incComplexity()
+			v.incComplexity(name, n.Pos())
 		}
 	}
 
@@ -337,11 +464,11 @@ func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 	return nil
 }
 
-func (v *complexityVisitor) incIfComplexity(n *ast.IfStmt) {
+func (v *complexityVisitor) incIfComplexity(n *ast.IfStmt, text string, pos token.Pos) {
 	if v.markedAsElseNode(n) {
-		v.incComplexity()
+		v.incComplexity(text, pos)
 	} else {
-		v.nestIncComplexity()
+		v.nestIncComplexity(text, pos)
 	}
 }
 

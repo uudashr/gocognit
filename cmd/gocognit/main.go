@@ -10,8 +10,10 @@
 //	-over N    show functions with complexity > N only and return exit code 1 if the output is non-empty
 //	-top N     show the top N most complex functions only
 //	-avg       show the average complexity over all functions, not depending on whether -over or -top are set
+//	-test      indicates whether test files should be included
 //	-json      encode the output as JSON
-//	-f format  string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+//	-d 	       enable diagnostic output
+//	-f format  string the format to use (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
 //
 // The (default) output fields for each line are:
 //
@@ -29,7 +31,21 @@
 //	  PkgName    string
 //	  FuncName   string
 //	  Complexity int
+//	  Diagnostics []Diagnostic
 //	  Pos        token.Position
+//	}
+//
+//	type Diagnostic struct {
+//	  Inc     string
+//	  Nesting int
+//	  Text    string
+//	  Pos     DiagnosticPosition
+//	}
+//
+//	type DiagnosticPosition struct {
+//	  Offset int
+//	  Line   int
+//	  Column int
 //	}
 package main
 
@@ -59,15 +75,17 @@ Usage:
 
 Flags:
 
-  -over N    show functions with complexity > N only
-             and return exit code 1 if the output is non-empty
-  -top N     show the top N most complex functions only
-  -avg       show the average complexity over all functions,
-             not depending on whether -over or -top are set
-  -test      indicates whether test files should be included
-  -json      encode the output as JSON
-  -f format  string the format to use 
-             (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+  -over N       show functions with complexity > N only
+                and return exit code 1 if the output is non-empty
+  -top N        show the top N most complex functions only
+  -avg          show the average complexity over all functions,
+                not depending on whether -over or -top are set
+  -test         indicates whether test files should be included
+  -json         encode the output as JSON
+  -d 	        enable diagnostic output
+  -f format     string the format to use 
+                (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
+  -ignore expr  ignore files matching the given regexp
 
 The (default) output fields for each line are:
 
@@ -82,10 +100,24 @@ or equal to <complexity> <package> <function> <file:row:column>
 The struct being passed to the template is:
 
   type Stat struct {
-    PkgName    string
-    FuncName   string
-    Complexity int
-    Pos        token.Position
+    PkgName     string
+    FuncName    string
+    Complexity  int
+    Pos         token.Position
+    Diagnostics []Diagnostics
+  }
+
+  type Diagnostic struct {
+    Inc     string
+    Nesting int
+    Text    string
+    Pos     DiagnosticPosition
+  }	
+
+  type DiagnosticPosition struct {
+    Offset int
+    Line   int
+    Column int
   }
 `
 
@@ -103,13 +135,14 @@ func usage() {
 
 func main() {
 	var (
-		over         int
-		top          int
-		avg          bool
-		includeTests bool
-		format       string
-		jsonEncode   bool
-		ignoreExpr   string
+		over              int
+		top               int
+		avg               bool
+		includeTests      bool
+		format            string
+		jsonEncode        bool
+		enableDiagnostics bool
+		ignoreExpr        string
 	)
 
 	flag.IntVar(&over, "over", defaultOverFlagVal, "show functions with complexity > N only")
@@ -118,6 +151,7 @@ func main() {
 	flag.BoolVar(&includeTests, "test", true, "indicates whether test files should be included")
 	flag.StringVar(&format, "f", defaultFormat, "the format to use")
 	flag.BoolVar(&jsonEncode, "json", false, "encode the output as JSON")
+	flag.BoolVar(&enableDiagnostics, "d", false, "enable diagnostic output")
 	flag.StringVar(&ignoreExpr, "ignore", "", "ignore files matching the given regexp")
 
 	log.SetFlags(0)
@@ -136,7 +170,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stats, err := analyze(args, includeTests)
+	stats, err := analyze(args, includeTests, enableDiagnostics)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -170,19 +204,19 @@ func main() {
 	}
 }
 
-func analyzePath(path string, includeTests bool) ([]gocognit.Stat, error) {
+func analyzePath(path string, includeTests bool, includeDiagnostic bool) ([]gocognit.Stat, error) {
 	if isDir(path) {
-		return analyzeDir(path, includeTests, nil)
+		return analyzeDir(path, includeTests, nil, includeDiagnostic)
 	}
 
-	return analyzeFile(path, nil)
+	return analyzeFile(path, nil, includeDiagnostic)
 }
 
-func analyze(paths []string, includeTests bool) (stats []gocognit.Stat, err error) {
+func analyze(paths []string, includeTests bool, includeDiagnostic bool) (stats []gocognit.Stat, err error) {
 	var out []gocognit.Stat
 
 	for _, path := range paths {
-		stats, err := analyzePath(path, includeTests)
+		stats, err := analyzePath(path, includeTests, includeDiagnostic)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +233,7 @@ func isDir(filename string) bool {
 	return err == nil && fi.IsDir()
 }
 
-func analyzeFile(fname string, stats []gocognit.Stat) ([]gocognit.Stat, error) {
+func analyzeFile(fname string, stats []gocognit.Stat, includeDiagnostic bool) ([]gocognit.Stat, error) {
 	fset := token.NewFileSet()
 
 	f, err := parser.ParseFile(fset, fname, nil, parser.ParseComments)
@@ -207,10 +241,10 @@ func analyzeFile(fname string, stats []gocognit.Stat) ([]gocognit.Stat, error) {
 		return nil, err
 	}
 
-	return gocognit.ComplexityStats(f, fset, stats), nil
+	return gocognit.ComplexityStatsWithDiagnostic(f, fset, stats, includeDiagnostic), nil
 }
 
-func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat) ([]gocognit.Stat, error) {
+func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, trace bool) ([]gocognit.Stat, error) {
 	err := filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -228,7 +262,7 @@ func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat) ([]goc
 			return nil
 		}
 
-		stats, err = analyzeFile(path, stats)
+		stats, err = analyzeFile(path, stats, trace)
 		if err != nil {
 			return err
 		}
