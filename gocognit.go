@@ -20,7 +20,7 @@ type Stat struct {
 	Diagnostics []Diagnostic `json:",omitempty"`
 }
 
-// Diagnostic contrains information how the complexity increase.
+// Diagnostic contains information how the complexity increase.
 type Diagnostic struct {
 	Inc     int
 	Nesting int `json:",omitempty"`
