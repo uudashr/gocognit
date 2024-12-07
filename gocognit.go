@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -12,26 +13,58 @@ import (
 
 // Stat is statistic of the complexity.
 type Stat struct {
-	PkgName    string
-	FuncName   string
-	Complexity int
-	Traces     []Trace `json:",omitempty"`
-	Pos        token.Position
+	PkgName     string
+	FuncName    string
+	Complexity  int
+	Diagnostics []Diagnostic `json:",omitempty"`
+	Pos         token.Position
 }
 
-type Trace struct {
+// Diagnostic contrains information how the complexity increase.
+type Diagnostic struct {
 	Inc     int
 	Nesting int `json:",omitempty"`
 	Text    string
-	Pos     token.Position
+	Pos     DiagnosticPosition
 }
 
-func (t Trace) String() string {
-	if t.Nesting == 0 {
-		return fmt.Sprintf("+%d", t.Inc)
+// DiagnosticPosition is the position of the diagnostic.
+type DiagnosticPosition struct {
+	Offset int // offset, starting at 0
+	Line   int // line number, starting at 1
+	Column int // column number, starting at 1 (byte count)
+}
+
+func (pos DiagnosticPosition) isValid() bool {
+	return pos.Line > 0
+}
+
+func (pos DiagnosticPosition) String() string {
+	var s string
+	if pos.isValid() {
+		if s != "" {
+			s += ":"
+		}
+
+		s += strconv.Itoa(pos.Line)
+		if pos.Column != 0 {
+			s += fmt.Sprintf(":%d", pos.Column)
+		}
 	}
 
-	return fmt.Sprintf("+%d (nesting=%d)", t.Inc, t.Nesting)
+	if s == "" {
+		s = "-"
+	}
+
+	return s
+}
+
+func (d Diagnostic) String() string {
+	if d.Nesting == 0 {
+		return fmt.Sprintf("+%d", d.Inc)
+	}
+
+	return fmt.Sprintf("+%d (nesting=%d)", d.Inc, d.Nesting)
 }
 
 func (s Stat) String() string {
@@ -39,7 +72,12 @@ func (s Stat) String() string {
 }
 
 // ComplexityStats builds the complexity statistics.
-func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat, includeTrace bool) []Stat {
+func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
+	return ComplexityStatsWithDiagnostic(f, fset, stats, false)
+}
+
+// ComplexityStatsWithDiagnostic builds the complexity statistics with diagnostic.
+func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Stat, enableDiagnostic bool) []Stat {
 	for _, decl := range f.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			d := parseDirective(fn.Doc)
@@ -47,14 +85,14 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat, includeTrac
 				continue
 			}
 
-			res := ScanComplexity(fn, includeTrace)
+			res := ScanComplexity(fn, enableDiagnostic)
 
 			stats = append(stats, Stat{
-				PkgName:    f.Name.Name,
-				FuncName:   funcName(fn),
-				Complexity: res.Complexity,
-				Traces:     traces(fset, res.Traces),
-				Pos:        fset.Position(fn.Pos()),
+				PkgName:     f.Name.Name,
+				FuncName:    funcName(fn),
+				Complexity:  res.Complexity,
+				Diagnostics: generateDiagnostics(fset, res.Diagnostics),
+				Pos:         fset.Position(fn.Pos()),
 			})
 		}
 	}
@@ -62,14 +100,21 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat, includeTrac
 	return stats
 }
 
-func traces(fset *token.FileSet, traces []trace) []Trace {
-	tags := make([]Trace, 0, len(traces))
-	for _, t := range traces {
-		tags = append(tags, Trace{
-			Inc:     t.Inc,
-			Nesting: t.Nesting,
-			Text:    t.Text,
-			Pos:     fset.Position(t.Pos),
+func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
+	tags := make([]Diagnostic, 0, len(diags))
+	for _, diag := range diags {
+		pos := fset.Position(diag.Pos)
+		tracePos := DiagnosticPosition{
+			Offset: pos.Offset,
+			Line:   pos.Line,
+			Column: pos.Column,
+		}
+
+		tags = append(tags, Diagnostic{
+			Inc:     diag.Inc,
+			Nesting: diag.Nesting,
+			Text:    diag.Text,
+			Pos:     tracePos,
 		})
 	}
 
@@ -116,26 +161,26 @@ func Complexity(fn *ast.FuncDecl) int {
 }
 
 // ScanComplexity scans the function declaration.
-func ScanComplexity(fn *ast.FuncDecl, trace bool) ScanResult {
+func ScanComplexity(fn *ast.FuncDecl, includeDiagnostic bool) ScanResult {
 	v := complexityVisitor{
-		name:  fn.Name,
-		trace: trace,
+		name:              fn.Name,
+		diagnosticEnabled: includeDiagnostic,
 	}
 
 	ast.Walk(&v, fn)
 
 	return ScanResult{
-		Traces:     v.traces,
-		Complexity: v.complexity,
+		Diagnostics: v.diagnostics,
+		Complexity:  v.complexity,
 	}
 }
 
 type ScanResult struct {
-	Traces     []trace
-	Complexity int
+	Diagnostics []diagnostic
+	Complexity  int
 }
 
-type trace struct {
+type diagnostic struct {
 	Inc     int
 	Nesting int
 	Text    string
@@ -151,8 +196,8 @@ type complexityVisitor struct {
 
 	fset *token.FileSet
 
-	trace  bool
-	traces []trace
+	diagnosticEnabled bool
+	diagnostics       []diagnostic
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -166,11 +211,11 @@ func (v *complexityVisitor) decNesting() {
 func (v *complexityVisitor) incComplexity(text string, pos token.Pos) {
 	v.complexity++
 
-	if !v.trace {
+	if !v.diagnosticEnabled {
 		return
 	}
 
-	v.traces = append(v.traces, trace{
+	v.diagnostics = append(v.diagnostics, diagnostic{
 		Inc:  1,
 		Text: text,
 		Pos:  pos,
@@ -180,11 +225,11 @@ func (v *complexityVisitor) incComplexity(text string, pos token.Pos) {
 func (v *complexityVisitor) nestIncComplexity(text string, pos token.Pos) {
 	v.complexity += (v.nesting + 1)
 
-	if !v.trace {
+	if !v.diagnosticEnabled {
 		return
 	}
 
-	v.traces = append(v.traces, trace{
+	v.diagnostics = append(v.diagnostics, diagnostic{
 		Inc:     v.nesting + 1,
 		Nesting: v.nesting,
 		Text:    text,

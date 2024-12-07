@@ -66,8 +66,9 @@ Flags:
              not depending on whether -over or -top are set
   -test      indicates whether test files should be included
   -json      encode the output as JSON
+  -d 	     enable diagnostic output
   -f format  string the format to use 
-             (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+             (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
 
 The (default) output fields for each line are:
 
@@ -82,10 +83,24 @@ or equal to <complexity> <package> <function> <file:row:column>
 The struct being passed to the template is:
 
   type Stat struct {
-    PkgName    string
-    FuncName   string
-    Complexity int
-    Pos        token.Position
+    PkgName     string
+    FuncName    string
+    Complexity  int
+    Diagnostics []Diagnostics
+    Pos         token.Position
+  }
+
+  type Diagnostic struct {
+    Inc     string
+    Nesting int
+    Text    string
+    Pos     DiagnosticPosition
+  }	
+
+  type DiagnosticPosition struct {
+    Offset int
+    Line   int
+    Column int
   }
 `
 
@@ -110,7 +125,7 @@ func main() {
 		format       string
 		jsonEncode   bool
 		ignoreExpr   string
-		trace        bool
+		diagnostic   bool
 	)
 
 	flag.IntVar(&over, "over", defaultOverFlagVal, "show functions with complexity > N only")
@@ -120,7 +135,7 @@ func main() {
 	flag.StringVar(&format, "f", defaultFormat, "the format to use")
 	flag.BoolVar(&jsonEncode, "json", false, "encode the output as JSON")
 	flag.StringVar(&ignoreExpr, "ignore", "", "ignore files matching the given regexp")
-	flag.BoolVar(&trace, "trace", false, "include trace information of the complexity")
+	flag.BoolVar(&diagnostic, "d", false, "enable diagnostic output")
 
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
@@ -138,8 +153,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	traceEnabled := trace && jsonEncode
-	stats, err := analyze(args, includeTests, traceEnabled)
+	stats, err := analyze(args, includeTests, diagnostic)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -173,19 +187,19 @@ func main() {
 	}
 }
 
-func analyzePath(path string, includeTests bool, trace bool) ([]gocognit.Stat, error) {
+func analyzePath(path string, includeTests bool, includeDiagnostic bool) ([]gocognit.Stat, error) {
 	if isDir(path) {
-		return analyzeDir(path, includeTests, nil, trace)
+		return analyzeDir(path, includeTests, nil, includeDiagnostic)
 	}
 
-	return analyzeFile(path, nil, trace)
+	return analyzeFile(path, nil, includeDiagnostic)
 }
 
-func analyze(paths []string, includeTests bool, trace bool) (stats []gocognit.Stat, err error) {
+func analyze(paths []string, includeTests bool, includeDiagnostic bool) (stats []gocognit.Stat, err error) {
 	var out []gocognit.Stat
 
 	for _, path := range paths {
-		stats, err := analyzePath(path, includeTests, trace)
+		stats, err := analyzePath(path, includeTests, includeDiagnostic)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +216,7 @@ func isDir(filename string) bool {
 	return err == nil && fi.IsDir()
 }
 
-func analyzeFile(fname string, stats []gocognit.Stat, trace bool) ([]gocognit.Stat, error) {
+func analyzeFile(fname string, stats []gocognit.Stat, includeDiagnostic bool) ([]gocognit.Stat, error) {
 	fset := token.NewFileSet()
 
 	f, err := parser.ParseFile(fset, fname, nil, parser.ParseComments)
@@ -210,7 +224,7 @@ func analyzeFile(fname string, stats []gocognit.Stat, trace bool) ([]gocognit.St
 		return nil, err
 	}
 
-	return gocognit.ComplexityStats(f, fset, stats, trace), nil
+	return gocognit.ComplexityStatsWithDiagnostic(f, fset, stats, includeDiagnostic), nil
 }
 
 func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, trace bool) ([]gocognit.Stat, error) {
