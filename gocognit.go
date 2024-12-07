@@ -77,7 +77,7 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 }
 
 // ComplexityStatsWithDiagnostic builds the complexity statistics with diagnostic.
-func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Stat, enableDiagnostic bool) []Stat {
+func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Stat, enableDiagnostics bool) []Stat {
 	for _, decl := range f.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			d := parseDirective(fn.Doc)
@@ -85,7 +85,7 @@ func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Sta
 				continue
 			}
 
-			res := ScanComplexity(fn, enableDiagnostic)
+			res := ScanComplexity(fn, enableDiagnostics)
 
 			stats = append(stats, Stat{
 				PkgName:     f.Name.Name,
@@ -101,7 +101,8 @@ func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Sta
 }
 
 func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
-	tags := make([]Diagnostic, 0, len(diags))
+	out := make([]Diagnostic, 0, len(diags))
+
 	for _, diag := range diags {
 		pos := fset.Position(diag.Pos)
 		tracePos := DiagnosticPosition{
@@ -110,7 +111,7 @@ func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
 			Column: pos.Column,
 		}
 
-		tags = append(tags, Diagnostic{
+		out = append(out, Diagnostic{
 			Inc:     diag.Inc,
 			Nesting: diag.Nesting,
 			Text:    diag.Text,
@@ -118,7 +119,7 @@ func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
 		})
 	}
 
-	return tags
+	return out
 }
 
 type directive struct {
@@ -161,10 +162,10 @@ func Complexity(fn *ast.FuncDecl) int {
 }
 
 // ScanComplexity scans the function declaration.
-func ScanComplexity(fn *ast.FuncDecl, includeDiagnostic bool) ScanResult {
+func ScanComplexity(fn *ast.FuncDecl, includeDiagnostics bool) ScanResult {
 	v := complexityVisitor{
-		name:              fn.Name,
-		diagnosticEnabled: includeDiagnostic,
+		name:               fn.Name,
+		diagnosticsEnabled: includeDiagnostics,
 	}
 
 	ast.Walk(&v, fn)
@@ -194,8 +195,8 @@ type complexityVisitor struct {
 	elseNodes       map[ast.Node]bool
 	calculatedExprs map[ast.Expr]bool
 
-	diagnosticEnabled bool
-	diagnostics       []diagnostic
+	diagnosticsEnabled bool
+	diagnostics        []diagnostic
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -209,7 +210,7 @@ func (v *complexityVisitor) decNesting() {
 func (v *complexityVisitor) incComplexity(text string, pos token.Pos) {
 	v.complexity++
 
-	if !v.diagnosticEnabled {
+	if !v.diagnosticsEnabled {
 		return
 	}
 
@@ -223,7 +224,7 @@ func (v *complexityVisitor) incComplexity(text string, pos token.Pos) {
 func (v *complexityVisitor) nestIncComplexity(text string, pos token.Pos) {
 	v.complexity += (v.nesting + 1)
 
-	if !v.diagnosticEnabled {
+	if !v.diagnosticsEnabled {
 		return
 	}
 
@@ -414,6 +415,7 @@ func (v *complexityVisitor) visitFuncLit(n *ast.FuncLit) ast.Visitor {
 	v.incNesting()
 	ast.Walk(v, n.Body)
 	v.decNesting()
+
 	return nil
 }
 
@@ -421,6 +423,7 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 	if n.Label != nil {
 		v.incComplexity(n.Tok.String(), n.Pos())
 	}
+
 	return v
 }
 

@@ -10,8 +10,10 @@
 //	-over N    show functions with complexity > N only and return exit code 1 if the output is non-empty
 //	-top N     show the top N most complex functions only
 //	-avg       show the average complexity over all functions, not depending on whether -over or -top are set
+//	-test      indicates whether test files should be included
 //	-json      encode the output as JSON
-//	-f format  string the format to use (default "{{.PkgName}}.{{.FuncName}}:{{.Complexity}}:{{.Pos}}")
+//	-d 	       enable diagnostic output
+//	-f format  string the format to use (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
 //
 // The (default) output fields for each line are:
 //
@@ -29,7 +31,21 @@
 //	  PkgName    string
 //	  FuncName   string
 //	  Complexity int
+//	  Diagnostics []Diagnostic
 //	  Pos        token.Position
+//	}
+//
+//	type Diagnostic struct {
+//	  Inc     string
+//	  Nesting int
+//	  Text    string
+//	  Pos     DiagnosticPosition
+//	}
+//
+//	type DiagnosticPosition struct {
+//	  Offset int
+//	  Line   int
+//	  Column int
 //	}
 package main
 
@@ -59,16 +75,17 @@ Usage:
 
 Flags:
 
-  -over N    show functions with complexity > N only
-             and return exit code 1 if the output is non-empty
-  -top N     show the top N most complex functions only
-  -avg       show the average complexity over all functions,
-             not depending on whether -over or -top are set
-  -test      indicates whether test files should be included
-  -json      encode the output as JSON
-  -d 	     enable diagnostic output
-  -f format  string the format to use 
-             (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
+  -over N       show functions with complexity > N only
+                and return exit code 1 if the output is non-empty
+  -top N        show the top N most complex functions only
+  -avg          show the average complexity over all functions,
+                not depending on whether -over or -top are set
+  -test         indicates whether test files should be included
+  -json         encode the output as JSON
+  -d 	        enable diagnostic output
+  -f format     string the format to use 
+                (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
+  -ignore expr  ignore files matching the given regexp
 
 The (default) output fields for each line are:
 
@@ -118,14 +135,14 @@ func usage() {
 
 func main() {
 	var (
-		over         int
-		top          int
-		avg          bool
-		includeTests bool
-		format       string
-		jsonEncode   bool
-		ignoreExpr   string
-		diagnostic   bool
+		over              int
+		top               int
+		avg               bool
+		includeTests      bool
+		format            string
+		jsonEncode        bool
+		enableDiagnostics bool
+		ignoreExpr        string
 	)
 
 	flag.IntVar(&over, "over", defaultOverFlagVal, "show functions with complexity > N only")
@@ -134,8 +151,8 @@ func main() {
 	flag.BoolVar(&includeTests, "test", true, "indicates whether test files should be included")
 	flag.StringVar(&format, "f", defaultFormat, "the format to use")
 	flag.BoolVar(&jsonEncode, "json", false, "encode the output as JSON")
+	flag.BoolVar(&enableDiagnostics, "d", false, "enable diagnostic output")
 	flag.StringVar(&ignoreExpr, "ignore", "", "ignore files matching the given regexp")
-	flag.BoolVar(&diagnostic, "d", false, "enable diagnostic output")
 
 	log.SetFlags(0)
 	log.SetPrefix("gocognit: ")
@@ -153,7 +170,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stats, err := analyze(args, includeTests, diagnostic)
+	stats, err := analyze(args, includeTests, enableDiagnostics)
 	if err != nil {
 		log.Fatal(err)
 	}
