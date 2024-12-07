@@ -105,7 +105,7 @@ func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
 
 	for _, diag := range diags {
 		pos := fset.Position(diag.Pos)
-		tracePos := DiagnosticPosition{
+		diagPos := DiagnosticPosition{
 			Offset: pos.Offset,
 			Line:   pos.Line,
 			Column: pos.Column,
@@ -115,7 +115,7 @@ func generateDiagnostics(fset *token.FileSet, diags []diagnostic) []Diagnostic {
 			Inc:     diag.Inc,
 			Nesting: diag.Nesting,
 			Text:    diag.Text,
-			Pos:     tracePos,
+			Pos:     diagPos,
 		})
 	}
 
