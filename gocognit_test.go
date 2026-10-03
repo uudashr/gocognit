@@ -30,3 +30,9 @@ func TestAnalyzerComplex(t *testing.T) {
 	gocognit.Analyzer.Flags.Set("over", "0")
 	analysistest.Run(t, testdata, gocognit.Analyzer, "d")
 }
+
+func TestAnalyzerLogicalOp(t *testing.T) {
+	testdata := analysistest.TestData()
+	gocognit.Analyzer.Flags.Set("over", "0")
+	analysistest.Run(t, testdata, gocognit.Analyzer, "e")
+}
