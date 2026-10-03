@@ -19,17 +19,17 @@ func SimpleCond(n int) string {
 	return "others"
 } // total complexity = 1
 
-func IfElseNested(n int) string {
+func IfElseNested(n int) string { // want "cognitive complexity 4 of func IfElseNested is high \\(> 3\\)"
 	if n == 100 { // +1
 		return "a hundred"
 	} else { // + 1
-		if n == 200 { // + 1
+		if n == 200 { // +2 (nesting=1)
 			return "two hundred"
 		}
 	}
 
 	return "others"
-} // total complexity = 3
+} // total complexity = 4
 
 func IfElseIfNested(n int) string { // want "cognitive complexity 4 of func IfElseIfNested is high \\(> 3\\)"
 	if n == 100 { // +1

@@ -312,7 +312,9 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	if _, ok := n.Else.(*ast.BlockStmt); ok {
 		v.incComplexity("else", n.Else.Pos())
 
+		v.incNesting()
 		ast.Walk(v, n.Else)
+		v.decNesting()
 	} else if _, ok := n.Else.(*ast.IfStmt); ok {
 		v.markAsElseNode(n.Else)
 		ast.Walk(v, n.Else)
