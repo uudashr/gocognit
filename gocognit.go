@@ -460,6 +460,10 @@ func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 	v.markCalculated(exp)
 
+	if paren, ok := exp.(*ast.ParenExpr); ok {
+		return v.collectBinaryOps(paren.X)
+	}
+
 	if exp, ok := exp.(*ast.BinaryExpr); ok {
 		return mergeBinaryOps(v.collectBinaryOps(exp.X), exp.Op, v.collectBinaryOps(exp.Y))
 	}
