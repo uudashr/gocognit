@@ -1,6 +1,7 @@
 package gocognit
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -112,5 +113,115 @@ func Fib(n int) int {
 
 	if got := ScanComplexityWithRecursion(fn, false, false).Complexity; got != 1 {
 		t.Errorf("non-recursive Complexity = %d, want 1", got)
+	}
+}
+
+// TestPossibleMethodRecursion covers the low-noise heuristic that decides
+// whether to suggest type-aware analysis. It must fire on mutual method cycles
+// (including across files) and stay quiet for resolved recursion, acyclic
+// method calls, and imported selectors.
+func TestPossibleMethodRecursion(t *testing.T) {
+	tests := []struct {
+		name    string
+		sources []string
+		want    bool
+	}{
+		{
+			name: "mutual methods",
+			sources: []string{`package p
+
+type Node struct{ next *Node }
+
+func (n *Node) Walk() { n.Step() }
+func (n *Node) Step() { n.next.Walk() }
+`},
+			want: true,
+		},
+		{
+			name: "cross-file mutual methods",
+			sources: []string{
+				"package p\n\ntype Node struct{ next *Node }\n\nfunc (n *Node) Walk() { n.Step() }\n",
+				"package p\n\nfunc (n *Node) Step() { n.next.Walk() }\n",
+			},
+			want: true,
+		},
+		{
+			name: "direct recursion is already resolved",
+			sources: []string{`package p
+
+func Fib(n int) int {
+	if n <= 1 {
+		return n
+	}
+	return Fib(n-1) + Fib(n-2)
+}
+`},
+		},
+		{
+			name: "sibling method is not a cycle",
+			sources: []string{`package p
+
+type Node struct{}
+
+func (n *Node) A() { n.B() }
+func (n *Node) B()   {}
+`},
+		},
+		{
+			name: "method and function cycle",
+			sources: []string{`package p
+
+type Node struct{}
+
+func (n *Node) Walk()  { stepInto(n) }
+func stepInto(n *Node) { n.Walk() }
+`},
+			want: true,
+		},
+		{
+			name: "imported selector is ignored",
+			sources: []string{`package p
+
+import "fmt"
+
+type T struct{}
+
+func (t *T) Println() {}
+func (t *T) Use()     { fmt.Println("x") }
+`},
+		},
+		{
+			name: "foreign String call is not a cycle",
+			sources: []string{`package p
+
+type T struct{}
+
+type builder struct{}
+
+func (b *builder) String() string { return "" }
+func (t *T) String() string       { return "" }
+func (t *T) Render(b *builder)    { _ = b.String() }
+`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+			files := make([]*ast.File, 0, len(tt.sources))
+
+			for i, src := range tt.sources {
+				f, err := parser.ParseFile(fset, fmt.Sprintf("src%d.go", i), src, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				files = append(files, f)
+			}
+
+			if got := PossibleMethodRecursion(files); got != tt.want {
+				t.Errorf("PossibleMethodRecursion() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
