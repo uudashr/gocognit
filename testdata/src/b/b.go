@@ -179,8 +179,8 @@ func Fibonacci(n int) int {
 		return n
 	}
 
-	return Fibonacci(n-1) + Fibonacci(n-2) // +1 and +1
-} // Cognitive complexity = 3
+	return Fibonacci(n-1) + Fibonacci(n-2) // +1 for the recursion cycle (both calls)
+} // Cognitive complexity = 2
 
 func FactRec(n int) int {
 	if n <= 1 { // +1

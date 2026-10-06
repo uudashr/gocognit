@@ -183,13 +183,13 @@ OUT:
 	return total
 } // Cognitive complexity = 7
 
-func Fibonacci(n int) int { // want "cognitive complexity 3 of func Fibonacci is high \\(> 0\\)"
+func Fibonacci(n int) int { // want "cognitive complexity 2 of func Fibonacci is high \\(> 0\\)"
 	if n <= 1 { // +1
 		return n
 	}
 
-	return Fibonacci(n-1) + Fibonacci(n-2) // +1 and +1
-} // Cognitive complexity = 3
+	return Fibonacci(n-1) + Fibonacci(n-2) // +1 for the recursion cycle (both calls)
+} // Cognitive complexity = 2
 
 func FactRec(n int) int { // want "cognitive complexity 3 of func FactRec is high \\(> 0\\)"
 	if n <= 1 { // +1

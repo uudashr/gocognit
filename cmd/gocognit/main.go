@@ -53,6 +53,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io"
@@ -244,7 +245,9 @@ func analyzeFile(fname string, stats []gocognit.Stat, includeDiagnostic bool) ([
 	return gocognit.ComplexityStatsWithDiagnostic(f, fset, stats, includeDiagnostic), nil
 }
 
-func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, trace bool) ([]gocognit.Stat, error) {
+func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, includeDiagnostic bool) ([]gocognit.Stat, error) {
+	byDir := make(map[string][]string)
+
 	err := filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -262,16 +265,59 @@ func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, trace 
 			return nil
 		}
 
-		stats, err = analyzeFile(path, stats, trace)
-		if err != nil {
-			return err
-		}
+		dir := filepath.Dir(path)
+		byDir[dir] = append(byDir[dir], path)
 
 		return nil
 	})
 
 	if err != nil {
 		return nil, err
+	}
+
+	dirs := make([]string, 0, len(byDir))
+	for dir := range byDir {
+		dirs = append(dirs, dir)
+	}
+	sort.Strings(dirs)
+
+	for _, dir := range dirs {
+		stats, err = analyzeDirFiles(byDir[dir], stats, includeDiagnostic)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return stats, nil
+}
+
+// analyzeDirFiles parses and analyzes the Go files that live in one directory.
+// Files are grouped by package so that recursion can be detected across the
+// files of a package instead of one file at a time.
+func analyzeDirFiles(filenames []string, stats []gocognit.Stat, includeDiagnostic bool) ([]gocognit.Stat, error) {
+	sort.Strings(filenames)
+
+	fset := token.NewFileSet()
+
+	byPkg := make(map[string][]*ast.File)
+	var order []string
+
+	for _, filename := range filenames {
+		f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+		if err != nil {
+			return nil, err
+		}
+
+		name := f.Name.Name
+		if _, ok := byPkg[name]; !ok {
+			order = append(order, name)
+		}
+
+		byPkg[name] = append(byPkg[name], f)
+	}
+
+	for _, name := range order {
+		stats = gocognit.ComplexityStatsForFilesWithDiagnostic(byPkg[name], fset, nil, stats, includeDiagnostic)
 	}
 
 	return stats, nil
