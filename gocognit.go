@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -72,14 +73,27 @@ func (s Stat) String() string {
 	return fmt.Sprintf("%d %s %s %s", s.Complexity, s.PkgName, s.FuncName, s.Pos)
 }
 
+// ComplexityOptions controls complexity calculation options.
+type ComplexityOptions struct {
+	Diagnostics       bool
+	IgnoreErrorChecks bool
+}
+
 // ComplexityStats builds the complexity statistics.
 func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
-	return ComplexityStatsWithDiagnostic(f, fset, stats, false)
+	return ComplexityStatsWithOptions(f, fset, stats, ComplexityOptions{})
 }
 
 // ComplexityStatsWithDiagnostic builds the complexity statistics with diagnostic.
 func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Stat, enableDiagnostics bool) []Stat {
-	return ComplexityStatsForFilesWithDiagnostic([]*ast.File{f}, fset, nil, stats, enableDiagnostics)
+	return ComplexityStatsWithOptions(f, fset, stats, ComplexityOptions{
+		Diagnostics: enableDiagnostics,
+	})
+}
+
+// ComplexityStatsWithOptions builds the complexity statistics with options.
+func ComplexityStatsWithOptions(f *ast.File, fset *token.FileSet, stats []Stat, opts ComplexityOptions) []Stat {
+	return ComplexityStatsForFilesWithOptions([]*ast.File{f}, fset, nil, stats, opts)
 }
 
 // ComplexityStatsForFiles builds the complexity statistics for a package made
@@ -87,12 +101,20 @@ func ComplexityStatsWithDiagnostic(f *ast.File, fset *token.FileSet, stats []Sta
 // indirect recursion is counted. When info is non-nil it is used to resolve
 // calls precisely; otherwise a syntactic approximation is used.
 func ComplexityStatsForFiles(files []*ast.File, fset *token.FileSet, info *types.Info, stats []Stat) []Stat {
-	return ComplexityStatsForFilesWithDiagnostic(files, fset, info, stats, false)
+	return ComplexityStatsForFilesWithOptions(files, fset, info, stats, ComplexityOptions{})
 }
 
 // ComplexityStatsForFilesWithDiagnostic builds the complexity statistics for a
 // package made up of the given files, optionally with diagnostic output.
 func ComplexityStatsForFilesWithDiagnostic(files []*ast.File, fset *token.FileSet, info *types.Info, stats []Stat, enableDiagnostics bool) []Stat {
+	return ComplexityStatsForFilesWithOptions(files, fset, info, stats, ComplexityOptions{
+		Diagnostics: enableDiagnostics,
+	})
+}
+
+// ComplexityStatsForFilesWithOptions builds the complexity statistics for a
+// package made up of the given files, with options.
+func ComplexityStatsForFilesWithOptions(files []*ast.File, fset *token.FileSet, info *types.Info, stats []Stat, opts ComplexityOptions) []Stat {
 	recursive := RecursiveFuncs(files, info)
 
 	for _, f := range files {
@@ -107,7 +129,7 @@ func ComplexityStatsForFilesWithDiagnostic(files []*ast.File, fset *token.FileSe
 				continue
 			}
 
-			res := ScanComplexityWithRecursion(fn, recursive[fn], enableDiagnostics)
+			res := ScanComplexityWithRecursionAndOptions(fn, recursive[fn], opts)
 
 			stats = append(stats, Stat{
 				PkgName:     f.Name.Name,
@@ -178,7 +200,12 @@ func funcName(fn *ast.FuncDecl) string {
 
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fn *ast.FuncDecl) int {
-	res := ScanComplexity(fn, false)
+	return ComplexityWithOptions(fn, ComplexityOptions{})
+}
+
+// ComplexityWithOptions calculates the cognitive complexity of a function with options.
+func ComplexityWithOptions(fn *ast.FuncDecl, opts ComplexityOptions) int {
+	res := ScanComplexityWithOptions(fn, opts)
 
 	return res.Complexity
 }
@@ -189,8 +216,16 @@ func Complexity(fn *ast.FuncDecl) int {
 // package-aware entry point such as [ComplexityStatsForFiles], or combine
 // [RecursiveFuncs] with [ScanComplexityWithRecursion].
 func ScanComplexity(fn *ast.FuncDecl, includeDiagnostics bool) ScanResult {
+	return ScanComplexityWithOptions(fn, ComplexityOptions{
+		Diagnostics: includeDiagnostics,
+	})
+}
+
+// ScanComplexityWithOptions scans the function declaration with options.
+func ScanComplexityWithOptions(fn *ast.FuncDecl, opts ComplexityOptions) ScanResult {
 	return scanComplexity(fn, scanOptions{
-		includeDiagnostics: includeDiagnostics,
+		includeDiagnostics: opts.Diagnostics,
+		ignoreErrorChecks:  opts.IgnoreErrorChecks,
 		recursive:          directRecursive(fn),
 	})
 }
@@ -200,15 +235,25 @@ func ScanComplexity(fn *ast.FuncDecl, includeDiagnostics bool) ScanResult {
 // recursive is true, exactly one fundamental increment is added for the
 // recursion cycle, regardless of how many recursive calls the function makes.
 func ScanComplexityWithRecursion(fn *ast.FuncDecl, recursive bool, includeDiagnostics bool) ScanResult {
+	return ScanComplexityWithRecursionAndOptions(fn, recursive, ComplexityOptions{
+		Diagnostics: includeDiagnostics,
+	})
+}
+
+// ScanComplexityWithRecursionAndOptions scans the function declaration with
+// recursion information from a package-level analysis and options.
+func ScanComplexityWithRecursionAndOptions(fn *ast.FuncDecl, recursive bool, opts ComplexityOptions) ScanResult {
 	return scanComplexity(fn, scanOptions{
-		includeDiagnostics: includeDiagnostics,
+		includeDiagnostics: opts.Diagnostics,
+		ignoreErrorChecks:  opts.IgnoreErrorChecks,
 		recursive:          recursive,
 	})
 }
 
-// scanOptions controls how scanComplexity accounts for recursion.
+// scanOptions controls how scanComplexity accounts for recursion and error checking.
 type scanOptions struct {
 	includeDiagnostics bool
+	ignoreErrorChecks  bool
 
 	// recursive reports whether fn takes part in a recursion cycle. The
 	// increment is a property of the function, not of each call, so it is
@@ -220,6 +265,7 @@ func scanComplexity(fn *ast.FuncDecl, opts scanOptions) ScanResult {
 	v := complexityVisitor{
 		name:               fn.Name,
 		diagnosticsEnabled: opts.includeDiagnostics,
+		ignoreErrorChecks:  opts.ignoreErrorChecks,
 	}
 
 	ast.Walk(&v, fn)
@@ -255,6 +301,8 @@ type complexityVisitor struct {
 
 	diagnosticsEnabled bool
 	diagnostics        []diagnostic
+
+	ignoreErrorChecks bool
 }
 
 func (v *complexityVisitor) incNesting() {
@@ -353,6 +401,20 @@ func (v *complexityVisitor) Visit(n ast.Node) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
+	if v.ignoreErrorChecks && v.isIdiomaticErrorCheck(n) {
+		if n := n.Init; n != nil {
+			ast.Walk(v, n)
+		}
+
+		ast.Walk(v, n.Cond)
+
+		v.incNesting()
+		ast.Walk(v, n.Body)
+		v.decNesting()
+
+		return nil
+	}
+
 	v.incIfComplexity(n, "if", n.Pos())
 
 	if n := n.Init; n != nil {
@@ -377,6 +439,57 @@ func (v *complexityVisitor) visitIfStmt(n *ast.IfStmt) ast.Visitor {
 	}
 
 	return nil
+}
+
+func (v *complexityVisitor) isIdiomaticErrorCheck(n *ast.IfStmt) bool {
+	if n.Else != nil || v.markedAsElseNode(n) {
+		return false
+	}
+
+	return isErrCheckCond(n.Cond)
+}
+
+func isErrCheckCond(cond ast.Expr) bool {
+	cond = unwrapParen(cond)
+	bin, ok := cond.(*ast.BinaryExpr)
+	if !ok || bin.Op != token.NEQ {
+		return false
+	}
+
+	x := unwrapParen(bin.X)
+	y := unwrapParen(bin.Y)
+
+	return (isErrIdent(x) && isNilIdent(y)) || (isNilIdent(x) && isErrIdent(y))
+}
+
+func unwrapParen(e ast.Expr) ast.Expr {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			return e
+		}
+		e = p.X
+	}
+}
+
+func isNilIdent(expr ast.Expr) bool {
+	ident, ok := expr.(*ast.Ident)
+	return ok && ident.Name == "nil"
+}
+
+func isErrIdent(expr ast.Expr) bool {
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	name := ident.Name
+	if name == "err" {
+		return true
+	}
+	if strings.HasPrefix(name, "err") || strings.HasSuffix(name, "Err") || strings.HasSuffix(name, "_err") {
+		return true
+	}
+	return false
 }
 
 func (v *complexityVisitor) visitSwitchStmt(n *ast.SwitchStmt) ast.Visitor {
@@ -553,11 +666,14 @@ var Analyzer = &analysis.Analyzer{
 }
 
 var (
-	over int // -over flag
+	over              int  // -over flag
+	ignoreErrorChecks bool // -ignore-error-checks flag
 )
 
 func init() {
 	Analyzer.Flags.IntVar(&over, "over", over, "show functions with complexity > N only")
+	Analyzer.Flags.BoolVar(&ignoreErrorChecks, "ignore-error-checks", false, "ignore idiomatic error checks")
+	Analyzer.Flags.BoolVar(&ignoreErrorChecks, "ignore-err", false, "ignore idiomatic error checks (shorthand)")
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -578,7 +694,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		fnName := funcName(funcDecl)
 
-		fnComplexity := ScanComplexityWithRecursion(funcDecl, recursive[funcDecl], false).Complexity
+		fnComplexity := ScanComplexityWithRecursionAndOptions(funcDecl, recursive[funcDecl], ComplexityOptions{
+			IgnoreErrorChecks: ignoreErrorChecks,
+		}).Complexity
 
 		if fnComplexity > over {
 			pass.Reportf(funcDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)

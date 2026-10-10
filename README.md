@@ -180,6 +180,8 @@ Flags:
   -f format         string the format to use
                     (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
   -ignore expr      ignore files matching the given regexp
+  -ignore-error-checks
+                    ignore idiomatic error checks (shorthand: -ignore-err)
   -exact-recursion  work out what each call points to, the way the compiler
                     does, so recursion is scored exactly. Slower, and the code
                     must build; without it, mutually recursive methods may be

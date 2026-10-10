@@ -2,6 +2,8 @@ package main
 
 import (
 	"go/token"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/uudashr/gocognit"
@@ -68,5 +70,38 @@ func TestFilterStatFiles(t *testing.T) {
 	file := filterStatFiles(stats, "/p/a.go", true)
 	if len(file) != 1 || file[0].FuncName != "A" {
 		t.Fatalf("file filter = %v, want only A", file)
+	}
+}
+
+func TestAnalyzeFileIgnoreErrorChecks(t *testing.T) {
+	content := `package test
+
+func Do(err error) error {
+	if err != nil {
+		return err
+	}
+	return nil
+}
+`
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.go")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	statsDefault, err := analyzeFile(filePath, nil, gocognit.ComplexityOptions{}, false)
+	if err != nil {
+		t.Fatalf("analyzeFile failed: %v", err)
+	}
+	if len(statsDefault) != 1 || statsDefault[0].Complexity != 1 {
+		t.Fatalf("expected complexity 1 by default, got %v", statsDefault)
+	}
+
+	statsIgnored, err := analyzeFile(filePath, nil, gocognit.ComplexityOptions{IgnoreErrorChecks: true}, false)
+	if err != nil {
+		t.Fatalf("analyzeFile failed: %v", err)
+	}
+	if len(statsIgnored) != 1 || statsIgnored[0].Complexity != 0 {
+		t.Fatalf("expected complexity 0 with IgnoreErrorChecks, got %v", statsIgnored)
 	}
 }
