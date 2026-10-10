@@ -140,3 +140,243 @@ func TestRecursiveFuncsSyntactic(t *testing.T) {
 		}
 	}
 }
+
+func TestAnalyzerIgnoreErrorChecks(t *testing.T) {
+	testdata := analysistest.TestData()
+	gocognit.Analyzer.Flags.Set("over", "0")
+	gocognit.Analyzer.Flags.Set("ignore-error-checks", "true")
+	t.Cleanup(func() {
+		gocognit.Analyzer.Flags.Set("ignore-error-checks", "false")
+	})
+	analysistest.Run(t, testdata, gocognit.Analyzer, "g")
+}
+
+func TestAnalyzerIgnoreErrShorthand(t *testing.T) {
+	testdata := analysistest.TestData()
+	gocognit.Analyzer.Flags.Set("over", "0")
+	gocognit.Analyzer.Flags.Set("ignore-err", "true")
+	t.Cleanup(func() {
+		gocognit.Analyzer.Flags.Set("ignore-err", "false")
+	})
+	analysistest.Run(t, testdata, gocognit.Analyzer, "g")
+}
+
+func TestComplexityIgnoreErrorChecks(t *testing.T) {
+	src := `package test
+
+func SimpleErrCheck(err error) error {
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ErrCheckWithInit() error {
+	if err := doStep(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func NilNotEqualsErr(err error) error {
+	if nil != err {
+		return err
+	}
+	return nil
+}
+
+func CustomErrName(customErr error) error {
+	if customErr != nil {
+		return customErr
+	}
+	return nil
+}
+
+func SnakeCaseErrName(parse_err error) error {
+	if parse_err != nil {
+		return parse_err
+	}
+	return nil
+}
+
+func NestedErrCheck(err error) error {
+	for i := 0; i < 10; i++ {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func MultipleErrChecks(err, lastErr error) error {
+	if err != nil {
+		return err
+	}
+	if err := doStep(); err != nil {
+		return err
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return nil
+}
+
+func NonErrCheck(n int) string {
+	if n == 100 {
+		return "a hundred"
+	}
+	return "others"
+}
+
+func CompoundErrCheck(err error, retry bool) error {
+	if err != nil && retry {
+		return err
+	}
+	return nil
+}
+
+func SuccessCheck(err error) error {
+	if err == nil {
+		return nil
+	}
+	return err
+}
+
+func ErrCheckWithElse(err error) error {
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func ElseIfErrCheck(cond bool, err error) error {
+	if cond {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ErrCheckWithParen(err error) error {
+	if (err != nil) {
+		return err
+	}
+	return nil
+}
+
+func NestedBranchInsideErrCheck(err error, canRetry bool) error {
+	if err != nil {
+		if canRetry {
+			return err
+		}
+		return err
+	}
+	return nil
+}
+
+func doStep() error {
+	return nil
+}
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "sample.go", src, 0)
+	if err != nil {
+		t.Fatalf("failed to parse source: %v", err)
+	}
+
+	funcs := make(map[string]*ast.FuncDecl)
+	for _, decl := range f.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok {
+			funcs[fn.Name.Name] = fn
+		}
+	}
+
+	tests := []struct {
+		name        string
+		wantDefault int
+		wantIgnored int
+	}{
+		{name: "SimpleErrCheck", wantDefault: 1, wantIgnored: 0},
+		{name: "ErrCheckWithInit", wantDefault: 1, wantIgnored: 0},
+		{name: "NilNotEqualsErr", wantDefault: 1, wantIgnored: 0},
+		{name: "CustomErrName", wantDefault: 1, wantIgnored: 0},
+		{name: "SnakeCaseErrName", wantDefault: 1, wantIgnored: 0},
+		{name: "NestedErrCheck", wantDefault: 3, wantIgnored: 1},
+		{name: "MultipleErrChecks", wantDefault: 3, wantIgnored: 0},
+		{name: "NonErrCheck", wantDefault: 1, wantIgnored: 1},
+		{name: "CompoundErrCheck", wantDefault: 2, wantIgnored: 2},
+		{name: "SuccessCheck", wantDefault: 1, wantIgnored: 1},
+		{name: "ErrCheckWithElse", wantDefault: 2, wantIgnored: 2},
+		{name: "ElseIfErrCheck", wantDefault: 2, wantIgnored: 2},
+		{name: "ErrCheckWithParen", wantDefault: 1, wantIgnored: 0},
+		{name: "NestedBranchInsideErrCheck", wantDefault: 3, wantIgnored: 2},
+	}
+
+	for _, tt := range tests {
+		fn, ok := funcs[tt.name]
+		if !ok {
+			t.Fatalf("function %s not found", tt.name)
+		}
+
+		gotDefault := gocognit.Complexity(fn)
+		if gotDefault != tt.wantDefault {
+			t.Errorf("%s default complexity = %d, want %d", tt.name, gotDefault, tt.wantDefault)
+		}
+
+		gotIgnored := gocognit.ComplexityWithOptions(fn, gocognit.ComplexityOptions{
+			IgnoreErrorChecks: true,
+		})
+		if gotIgnored != tt.wantIgnored {
+			t.Errorf("%s with IgnoreErrorChecks complexity = %d, want %d", tt.name, gotIgnored, tt.wantIgnored)
+		}
+	}
+}
+
+func TestDiagnosticsIgnoreErrorChecks(t *testing.T) {
+	src := `package test
+
+func Handle(err error) error {
+	if err != nil {
+		return err
+	}
+	return nil
+}
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "sample.go", src, 0)
+	if err != nil {
+		t.Fatalf("failed to parse: %v", err)
+	}
+
+	var fn *ast.FuncDecl
+	for _, decl := range f.Decls {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Name.Name == "Handle" {
+			fn = fd
+			break
+		}
+	}
+	if fn == nil {
+		t.Fatal("Handle func not found")
+	}
+
+	resWithErr := gocognit.ScanComplexityWithOptions(fn, gocognit.ComplexityOptions{
+		Diagnostics:       true,
+		IgnoreErrorChecks: false,
+	})
+	if len(resWithErr.Diagnostics) != 1 {
+		t.Fatalf("expected 1 diagnostic without flag, got %d", len(resWithErr.Diagnostics))
+	}
+
+	resIgnored := gocognit.ScanComplexityWithOptions(fn, gocognit.ComplexityOptions{
+		Diagnostics:       true,
+		IgnoreErrorChecks: true,
+	})
+	if len(resIgnored.Diagnostics) != 0 {
+		t.Fatalf("expected 0 diagnostics with flag, got %d", len(resIgnored.Diagnostics))
+	}
+}
+

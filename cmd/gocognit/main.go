@@ -14,6 +14,7 @@
 //	-json      encode the output as JSON
 //	-d 	       enable diagnostic output
 //	-f format  string the format to use (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
+//	-ignore-error-checks  ignore idiomatic error checks (shorthand: -ignore-err)
 //
 // The (default) output fields for each line are:
 //
@@ -88,6 +89,8 @@ Flags:
   -f format         string the format to use
                     (default "{{.Complexity}} {{.PkgName}} {{.FuncName}} {{.Pos}}")
   -ignore expr      ignore files matching the given regexp
+  -ignore-error-checks
+                    ignore idiomatic error checks (shorthand: -ignore-err)
   -exact-recursion  work out what each call points to, the way the compiler
                     does, so recursion is scored exactly. Slower, and the code
                     must build; without it, mutually recursive methods may be
@@ -149,6 +152,7 @@ func main() {
 		jsonEncode        bool
 		enableDiagnostics bool
 		ignoreExpr        string
+		ignoreErrorChecks bool
 		exactRecursion    bool
 	)
 
@@ -160,6 +164,8 @@ func main() {
 	flag.BoolVar(&jsonEncode, "json", false, "encode the output as JSON")
 	flag.BoolVar(&enableDiagnostics, "d", false, "enable diagnostic output")
 	flag.StringVar(&ignoreExpr, "ignore", "", "ignore files matching the given regexp")
+	flag.BoolVar(&ignoreErrorChecks, "ignore-error-checks", false, "ignore idiomatic error checks")
+	flag.BoolVar(&ignoreErrorChecks, "ignore-err", false, "ignore idiomatic error checks (shorthand)")
 	flag.BoolVar(&exactRecursion, "exact-recursion", false, "work out what each call points to, like the compiler, so recursion is scored exactly (slower; the code must build)")
 
 	log.SetFlags(0)
@@ -178,7 +184,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stats, err := analyze(args, includeTests, enableDiagnostics, exactRecursion)
+	opts := gocognit.ComplexityOptions{
+		Diagnostics:       enableDiagnostics,
+		IgnoreErrorChecks: ignoreErrorChecks,
+	}
+
+	stats, err := analyze(args, includeTests, opts, exactRecursion)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -212,9 +223,9 @@ func main() {
 	}
 }
 
-func analyzePath(path string, includeTests bool, includeDiagnostic bool, exactRecursion bool) ([]gocognit.Stat, error) {
+func analyzePath(path string, includeTests bool, opts gocognit.ComplexityOptions, exactRecursion bool) ([]gocognit.Stat, error) {
 	if exactRecursion {
-		stats, err := analyzeExactRecursionPath(path, includeTests, includeDiagnostic)
+		stats, err := analyzeExactRecursionPath(path, includeTests, opts)
 		if err == nil {
 			return stats, nil
 		}
@@ -222,25 +233,25 @@ func analyzePath(path string, includeTests bool, includeDiagnostic bool, exactRe
 		log.Printf("warning: %s: type-aware analysis failed, falling back to syntax: %v", path, err)
 
 		// The user already asked for type-aware analysis; do not suggest it again.
-		return analyzeSyntacticPath(path, includeTests, includeDiagnostic, false)
+		return analyzeSyntacticPath(path, includeTests, opts, false)
 	}
 
-	return analyzeSyntacticPath(path, includeTests, includeDiagnostic, true)
+	return analyzeSyntacticPath(path, includeTests, opts, true)
 }
 
-func analyzeSyntacticPath(path string, includeTests bool, includeDiagnostic bool, suggestExactRecursion bool) ([]gocognit.Stat, error) {
+func analyzeSyntacticPath(path string, includeTests bool, opts gocognit.ComplexityOptions, suggestExactRecursion bool) ([]gocognit.Stat, error) {
 	if isDir(path) {
-		return analyzeDir(path, includeTests, nil, includeDiagnostic, suggestExactRecursion)
+		return analyzeDir(path, includeTests, nil, opts, suggestExactRecursion)
 	}
 
-	return analyzeFile(path, nil, includeDiagnostic, suggestExactRecursion)
+	return analyzeFile(path, nil, opts, suggestExactRecursion)
 }
 
-func analyze(paths []string, includeTests bool, includeDiagnostic bool, exactRecursion bool) (stats []gocognit.Stat, err error) {
+func analyze(paths []string, includeTests bool, opts gocognit.ComplexityOptions, exactRecursion bool) (stats []gocognit.Stat, err error) {
 	var out []gocognit.Stat
 
 	for _, path := range paths {
-		stats, err := analyzePath(path, includeTests, includeDiagnostic, exactRecursion)
+		stats, err := analyzePath(path, includeTests, opts, exactRecursion)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +277,7 @@ const exactRecursionLoadMode = packages.NeedName | packages.NeedFiles | packages
 // analyzeExactRecursionPath scores path using type information, so calls are resolved
 // exactly (including mutual method recursion). It returns an error when path
 // cannot be loaded with types, letting the caller fall back to syntax.
-func analyzeExactRecursionPath(path string, includeTests bool, includeDiagnostic bool) ([]gocognit.Stat, error) {
+func analyzeExactRecursionPath(path string, includeTests bool, opts gocognit.ComplexityOptions) ([]gocognit.Stat, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -317,7 +328,7 @@ func analyzeExactRecursionPath(path string, includeTests bool, includeDiagnostic
 		}
 
 		usable = true
-		stats = gocognit.ComplexityStatsForFilesWithDiagnostic(pkg.Syntax, pkg.Fset, pkg.TypesInfo, stats, includeDiagnostic)
+		stats = gocognit.ComplexityStatsForFilesWithOptions(pkg.Syntax, pkg.Fset, pkg.TypesInfo, stats, opts)
 	}
 
 	if !usable {
@@ -396,7 +407,7 @@ func dedupeStats(stats []gocognit.Stat) []gocognit.Stat {
 	return out
 }
 
-func analyzeFile(fname string, stats []gocognit.Stat, includeDiagnostic bool, suggestExactRecursion bool) ([]gocognit.Stat, error) {
+func analyzeFile(fname string, stats []gocognit.Stat, opts gocognit.ComplexityOptions, suggestExactRecursion bool) ([]gocognit.Stat, error) {
 	fset := token.NewFileSet()
 
 	f, err := parser.ParseFile(fset, fname, nil, parser.ParseComments)
@@ -408,10 +419,10 @@ func analyzeFile(fname string, stats []gocognit.Stat, includeDiagnostic bool, su
 		suggestExactRecursionFor([]*ast.File{f})
 	}
 
-	return gocognit.ComplexityStatsWithDiagnostic(f, fset, stats, includeDiagnostic), nil
+	return gocognit.ComplexityStatsWithOptions(f, fset, stats, opts), nil
 }
 
-func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, includeDiagnostic bool, suggestExactRecursion bool) ([]gocognit.Stat, error) {
+func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, opts gocognit.ComplexityOptions, suggestExactRecursion bool) ([]gocognit.Stat, error) {
 	byDir := make(map[string][]string)
 
 	err := filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
@@ -448,7 +459,7 @@ func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, includ
 	sort.Strings(dirs)
 
 	for _, dir := range dirs {
-		stats, err = analyzeDirFiles(byDir[dir], stats, includeDiagnostic, suggestExactRecursion)
+		stats, err = analyzeDirFiles(byDir[dir], stats, opts, suggestExactRecursion)
 		if err != nil {
 			return nil, err
 		}
@@ -460,7 +471,7 @@ func analyzeDir(dirname string, includeTests bool, stats []gocognit.Stat, includ
 // analyzeDirFiles parses and analyzes the Go files that live in one directory.
 // Files are grouped by package so that recursion can be detected across the
 // files of a package instead of one file at a time.
-func analyzeDirFiles(filenames []string, stats []gocognit.Stat, includeDiagnostic bool, suggestExactRecursion bool) ([]gocognit.Stat, error) {
+func analyzeDirFiles(filenames []string, stats []gocognit.Stat, opts gocognit.ComplexityOptions, suggestExactRecursion bool) ([]gocognit.Stat, error) {
 	sort.Strings(filenames)
 
 	fset := token.NewFileSet()
@@ -487,7 +498,7 @@ func analyzeDirFiles(filenames []string, stats []gocognit.Stat, includeDiagnosti
 			suggestExactRecursionFor(byPkg[name])
 		}
 
-		stats = gocognit.ComplexityStatsForFilesWithDiagnostic(byPkg[name], fset, nil, stats, includeDiagnostic)
+		stats = gocognit.ComplexityStatsForFilesWithOptions(byPkg[name], fset, nil, stats, opts)
 	}
 
 	return stats, nil
